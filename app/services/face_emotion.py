@@ -122,3 +122,45 @@ def face_to_emotion(bgr_image: np.ndarray) -> dict | None:
             "cheek_tension": round(cheek_tension, 4),
         },
     }
+
+
+def face_to_emotion_video(video_path: str, sample_fps: float = 1.0) -> dict | None:
+    cap = cv2.VideoCapture(video_path)
+    if not cap.isOpened():
+        return None
+    src_fps = cap.get(cv2.CAP_PROP_FPS) or 30.0
+    stride = max(1, int(round(src_fps / max(sample_fps, 0.1))))
+
+    scores = []
+    labels = []
+    idx = 0
+    while True:
+        ok, frame = cap.read()
+        if not ok:
+            break
+        if idx % stride == 0:
+            r = face_to_emotion(frame)
+            if r is not None:
+                scores.append(r["score"])
+                labels.append(r["label"])
+        idx += 1
+    cap.release()
+
+    if not scores:
+        return None
+
+    # aggregate: mean damps single-frame noise; peak surfaces worst moment
+    mean_score = sum(scores) / len(scores)
+    peak_score = max(scores)
+    # escalate on single-frame 高风险 but otherwise use mean
+    final = peak_score if peak_score >= 4 else mean_score
+    label, risk = _score_label(final)
+
+    return {
+        "label": label,
+        "score": round(final, 2),
+        "risk": risk,
+        "frames_sampled": len(scores),
+        "mean_score": round(mean_score, 2),
+        "peak_score": round(peak_score, 2),
+    }
