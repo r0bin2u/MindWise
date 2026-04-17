@@ -20,8 +20,15 @@ LIP_UP, LIP_DOWN = 0, 17
 R_EYE_UP, R_EYE_DOWN = 159, 145
 L_EYE_UP, L_EYE_DOWN = 386, 374
 
-# cheeks / nose tip
-L_CHEEK, R_CHEEK, NOSE_TIP = 50, 280, 4
+# cheek + lip keypoint bundle for tension dispersion
+CHEEK_LIP = [
+    # left cheek
+    50, 101, 205, 207, 214,
+    # right cheek
+    280, 330, 425, 427, 434,
+    # upper & lower lip contour
+    61, 84, 17, 314, 291, 0, 13, 14, 81, 178,
+]
 
 
 _mesh = None
@@ -84,10 +91,12 @@ def face_to_emotion(bgr_image: np.ndarray) -> dict | None:
     # eye opening: smaller = more closed
     eye_open = (_d(lm, R_EYE_UP, R_EYE_DOWN) + _d(lm, L_EYE_UP, L_EYE_DOWN)) / 2 / face_w
 
-    # cheek tension: variance of cheek vs nose-tip distance (proxy)
-    cheek_tension = (
-        abs(lm[L_CHEEK].y - lm[NOSE_TIP].y) + abs(lm[R_CHEEK].y - lm[NOSE_TIP].y)
-    ) / 2 / face_w
+    # cheek + lip tension: std of displacement vectors from the cluster
+    # centroid (scale-invariant via face_w). muscles pulling unevenly
+    # → higher std
+    pts = np.array([[lm[i].x, lm[i].y] for i in CHEEK_LIP], dtype=float)
+    pts -= pts.mean(axis=0)
+    cheek_tension = float(np.linalg.norm(pts, axis=1).std()) / face_w
 
     score = 0.0
     if brow_drop > 0.02:
@@ -96,6 +105,7 @@ def face_to_emotion(bgr_image: np.ndarray) -> dict | None:
         score += 1.0
     if eye_open < 0.04:
         score += 1.0
+    # threshold is a rough starting point; needs calibration on real samples
     if cheek_tension > 0.25:
         score += 1.5
 
