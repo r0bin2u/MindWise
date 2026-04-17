@@ -1,0 +1,61 @@
+[project]
+name = "mindwise"
+version = "0.1.0"
+description = "Multimodal psychological counseling AI assistant"
+requires-python = ">=3.10"
+dependencies = [
+    "fastapi>=0.109",
+    "uvicorn[standard]>=0.27",
+    "pydantic>=2.5",
+    "pydantic-settings>=2.1",
+    "python-dotenv>=1.0",
+    "httpx>=0.26",
+    "aiosmtplib>=3.0",
+    "openpyxl>=3.1",
+    "ollama>=0.1.7",
+    "tenacity>=8.2",
+    "python-multipart>=0.0.9",
+    "pandas>=2.2",
+    "tqdm>=4.66",
+    "scikit-learn>=1.4",
+    "jsonlines>=4.0",
+    "chromadb>=0.4.22",
+    "langchain-text-splitters>=0.0.1",
+    "tiktoken>=0.5",
+    "langgraph>=0.0.40",
+    "faster-whisper>=1.0",
+    "mediapipe>=0.10",
+    "opencv-python>=4.9",
+    "numpy>=1.26",
+    "mcp>=1.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.23",
+    "ruff>=0.3",
+]
+finetune = [
+    "torch>=2.1",
+    "transformers>=4.40",
+    "peft>=0.10",
+    "bitsandbytes>=0.43",
+    "accelerate>=0.29",
+    "datasets>=2.18",
+    "trl>=0.8",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["app*", "mcp_server*", "scripts*"]
