@@ -16,9 +16,9 @@ R_BROW_INNER, R_BROW_OUTER = 336, 300
 MOUTH_L, MOUTH_R = 61, 291
 LIP_UP, LIP_DOWN = 0, 17
 
-# eye upper/lower
-R_EYE_UP, R_EYE_DOWN = 159, 145
-L_EYE_UP, L_EYE_DOWN = 386, 374
+# eye upper/lower (subject POV: 33/133/159/145 = left eye; 263/362/386/374 = right eye)
+L_EYE_UP, L_EYE_DOWN = 159, 145
+R_EYE_UP, R_EYE_DOWN = 386, 374
 
 # cheek + lip keypoint bundle for tension dispersion
 CHEEK_LIP = [
@@ -89,7 +89,7 @@ def face_to_emotion(bgr_image: np.ndarray) -> dict | None:
     ) / 2 / face_w
 
     # eye opening: smaller = more closed
-    eye_open = (_d(lm, R_EYE_UP, R_EYE_DOWN) + _d(lm, L_EYE_UP, L_EYE_DOWN)) / 2 / face_w
+    eye_open = (_d(lm, L_EYE_UP, L_EYE_DOWN) + _d(lm, R_EYE_UP, R_EYE_DOWN)) / 2 / face_w
 
     # cheek + lip tension: std of displacement vectors from the cluster
     # centroid (scale-invariant via face_w). muscles pulling unevenly
