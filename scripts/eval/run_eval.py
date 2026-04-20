@@ -10,27 +10,63 @@ from tqdm import tqdm
 
 LABELS = ["正常", "焦虑", "低落", "高风险"]
 
-EVAL_PROMPT = """你是情绪分类器。严格输出 JSON：{{"label": "<标签>"}}
+# JSON-style prompt (generic, works on any model)
+JSON_PROMPT = """你是情绪分类器。严格输出 JSON：{{"label": "<标签>"}}
 标签只能从四选一：正常、焦虑、低落、高风险。
 不解释，不输出其它字段。
 
 用户文本：{text}"""
 
+# Training-matched prompt (identical to what finetune_qwen.py uses)
+INSTR_PROMPT = """分析用户文本情绪，只能输出：正常、焦虑、低落、高风险
 
-def predict(client, model, text, retries=2):
-    prompt = EVAL_PROMPT.format(text=text)
+用户文本：{text}"""
+
+
+def extract_label(raw: str):
+    """Pick the LAST label mentioned — base model usually writes a verdict at
+    the end ('归类为焦虑'), so last-occurrence is more reliable than first."""
+    raw = (raw or "").strip()
+    if raw in LABELS:
+        return raw
+    # JSON first (in case format="json" was used)
+    try:
+        obj = json.loads(raw)
+        lbl = obj.get("label", "").strip()
+        if lbl in LABELS:
+            return lbl
+    except Exception:
+        pass
+    # find the last occurrence of any label in the text
+    best_pos, best_lbl = -1, None
+    for lbl in LABELS:
+        pos = raw.rfind(lbl)
+        if pos > best_pos:
+            best_pos, best_lbl = pos, lbl
+    return best_lbl
+
+
+def predict(client, model, text, prompt_style="instr", retries=2):
+    if prompt_style == "json":
+        prompt = JSON_PROMPT.format(text=text)
+        use_json_format = True
+    else:
+        prompt = INSTR_PROMPT.format(text=text)
+        use_json_format = False
+    # num_predict big enough to capture verbose baseline replies; fine-tuned
+    # model stops after the label naturally.
+    kwargs = {
+        "model": model,
+        "messages": [{"role": "user", "content": prompt}],
+        "options": {"temperature": 0, "num_predict": 256},
+    }
+    if use_json_format:
+        kwargs["format"] = "json"
     for i in range(retries + 1):
         try:
-            r = client.chat(
-                model=model,
-                messages=[{"role": "user", "content": prompt}],
-                format="json",
-                options={"temperature": 0},
-            )
-            raw = r["message"]["content"]
-            obj = json.loads(raw)
-            lbl = obj.get("label", "").strip()
-            if lbl in LABELS:
+            r = client.chat(**kwargs)
+            lbl = extract_label(r["message"]["content"])
+            if lbl:
                 return lbl
         except Exception:
             if i < retries:
@@ -57,6 +93,9 @@ def main():
     ap.add_argument("--pred-out", default=None,
                     help="optional path to dump per-item predictions")
     ap.add_argument("--limit", type=int, default=None)
+    ap.add_argument("--prompt-style", choices=["instr", "json"], default="instr",
+                    help="instr: training-matched plain-label prompt; "
+                         "json: JSON-output prompt (more generic)")
     args = ap.parse_args()
 
     client = ollama.Client(host=args.host)
@@ -72,7 +111,7 @@ def main():
     for r in tqdm(rows, desc=f"eval {args.model}"):
         text = r["input"]
         truth = r["output"]
-        pred = predict(client, args.model, text)
+        pred = predict(client, args.model, text, prompt_style=args.prompt_style)
         if pred is None:
             parse_fail += 1
             pred = "正常"  # fall back; still counted against accuracy
