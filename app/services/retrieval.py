@@ -11,21 +11,19 @@ from functools import lru_cache
 from typing import Any
 
 import chromadb
-from chromadb.utils import embedding_functions
 
 from app.core.config import settings
+from app.services.embeddings import make_embedding_function
 
 
 DEFAULT_COLLECTION = "mindwise_psych"
-DEFAULT_EMBED_MODEL = "BAAI/bge-small-zh-v1.5"
 
 
 @lru_cache(maxsize=1)
 def _get_collection():
     client = chromadb.PersistentClient(path=settings.chroma_path)
-    ef = embedding_functions.SentenceTransformerEmbeddingFunction(
-        model_name=DEFAULT_EMBED_MODEL
-    )
+    # backend selection comes from env / settings, same factory as build_kb
+    ef = make_embedding_function()
     return client.get_or_create_collection(
         name=DEFAULT_COLLECTION, embedding_function=ef
     )

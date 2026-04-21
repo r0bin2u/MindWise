@@ -19,8 +19,9 @@ import re
 from pathlib import Path
 
 import chromadb
-from chromadb.utils import embedding_functions
 from langchain_text_splitters import RecursiveCharacterTextSplitter
+
+from app.services.embeddings import make_embedding_function
 
 
 # Doc 8.6: noise → embedding drift → recall drops. Minimal cleanup only;
@@ -52,7 +53,11 @@ def build():
     ap.add_argument("--collection", default="mindwise_psych")
     ap.add_argument("--chunk-size", type=int, default=512)
     ap.add_argument("--chunk-overlap", type=int, default=64)
-    ap.add_argument("--embed-model", default="BAAI/bge-small-zh-v1.5")
+    ap.add_argument("--embed-backend", default=None,
+                    choices=["sentence_transformer", "openai"],
+                    help="override EMBEDDING_BACKEND for this build")
+    ap.add_argument("--embed-model", default=None,
+                    help="override model name within the chosen backend")
     ap.add_argument("--rebuild", action="store_true",
                     help="drop and recreate the collection")
     args = ap.parse_args()
@@ -65,8 +70,8 @@ def build():
         separators=["\n\n", "\n", "。", "！", "？", "；", " ", ""],
     )
 
-    ef = embedding_functions.SentenceTransformerEmbeddingFunction(
-        model_name=args.embed_model
+    ef = make_embedding_function(
+        backend=args.embed_backend, model=args.embed_model
     )
 
     Path(args.output).mkdir(parents=True, exist_ok=True)
