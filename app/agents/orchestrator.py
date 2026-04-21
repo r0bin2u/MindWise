@@ -146,6 +146,15 @@ async def on_turn_end(
     if intent == "CHAT":
         return actions  # never touch Excel or mail for chat
 
+    # RISK intent is an explicit distress signal (user said something like
+    # "我想死") — force-escalate regardless of what the fused risk band
+    # claims. Belt-and-suspenders: doc 16 says the caller should already
+    # pass risk="高风险" in this case, but don't trust callers silently.
+    if intent == "RISK":
+        risk = "高风险"
+        if emotion_label != "高风险":
+            emotion_label = "高风险"
+
     should_alert = intent == "RISK" or risk == "高风险"
 
     try:

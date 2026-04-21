@@ -186,6 +186,38 @@ async def test_on_turn_end_risk_intent_writes_both(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_on_turn_end_risk_intent_force_escalates_excel_fields(monkeypatch):
+    """RISK intent → force risk_level='高风险' and emotion_label='高风险' in
+    the Excel row, even if the caller passes a milder fused band. This is
+    a belt-and-suspenders safeguard against a miswired chat route silently
+    logging a 'want to die' turn as 需关注 (which would be catastrophic for
+    operations review)."""
+    from app.agents import orchestrator as mod
+
+    excel_args = []
+
+    async def record_excel(*args, **kwargs):
+        excel_args.append((args, kwargs))
+        return {"ok": True}
+
+    async def record_mail(*a, **kw):
+        return {"ok": True}
+
+    monkeypatch.setattr(mod, "write_excel", record_excel)
+    monkeypatch.setattr(mod, "send_mail_alert", record_mail)
+
+    # caller incorrectly passes emotion_label='焦虑' and risk='需关注'
+    # despite intent=RISK — orchestrator must still write 高风险 to Excel
+    await on_turn_end("u5", "我不想活了", "RISK", "焦虑", 0.8, "需关注")
+
+    assert len(excel_args) == 1
+    call_args, _ = excel_args[0]
+    # positional: user_id, message, emotion_label, score, risk_level
+    assert call_args[2] == "高风险"   # emotion_label force-escalated
+    assert call_args[4] == "高风险"   # risk_level force-escalated
+
+
+@pytest.mark.asyncio
 async def test_on_turn_end_swallows_excel_failure(monkeypatch):
     """A failing excel write must not abort the mail alert — both are tried."""
     from app.agents import orchestrator as mod
