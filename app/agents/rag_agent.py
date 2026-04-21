@@ -241,3 +241,82 @@ async def agentic_rag(user_q: str) -> dict:
         "steps": final["step"],
         "docs": [{"source": d["source"], "hit_idx": d["hit_idx"]} for d in final["docs"]],
     }
+
+
+# ---------------------------------------------------------------------------
+# streaming variant for the /chat endpoint
+# ---------------------------------------------------------------------------
+
+async def agentic_rag_stream(user_q: str):
+    """Streaming variant of agentic_rag.
+
+    The think/retrieve cycles run to completion as normal (they're short
+    LLM calls with JSON outputs, not worth streaming token-by-token), but
+    the final answer generation is streamed token-by-token so the user
+    sees typewriter output.
+
+    Yields plain text tokens. The chat route wraps them into SSE frames.
+    """
+    history: list[dict] = [
+        {"role": "system", "content": AGENT_PROMPT},
+        {"role": "user", "content": user_q},
+    ]
+    docs: list[dict] = []
+    step = 0
+    last_action: Optional[str] = None
+    last_query: Optional[str] = None
+
+    # ---- think/retrieve cycles (unchanged logic, just inline) ----
+    while step < MAX_STEPS:
+        resp = await get_client().chat(
+            model=settings.ollama_model,
+            messages=history,
+            format="json",
+            options={"temperature": 0, "num_predict": 256},
+        )
+        raw = resp["message"]["content"]
+        try:
+            parsed = AgentStep.model_validate_json(raw)
+        except (ValidationError, ValueError, json.JSONDecodeError):
+            parsed = AgentStep(
+                think="模型输出不可解析，直接给出最终回答。",
+                action="ANSWER",
+                query="",
+            )
+        history.append({"role": "assistant", "content": raw})
+        last_action = parsed.action
+        last_query = parsed.query
+
+        if parsed.action == "ANSWER":
+            break
+
+        passages = retrieve(parsed.query or user_q, k=3, neighbors=1)
+        docs.extend(passages)
+        history.append({
+            "role": "user",
+            "content": f"第 {step + 1} 轮检索结果：\n{format_passages(passages)}\n\n请继续推理，决定下一步是再次检索还是给出最终答案。",
+        })
+        step += 1
+
+    # ---- stream the final answer generation ----
+    if docs:
+        prompt = ANSWER_PROMPT_WITH_DOCS.format(
+            user_q=user_q,
+            docs=format_passages(docs[:4]),
+        )
+    else:
+        prompt = ANSWER_PROMPT_NO_DOCS.format(user_q=user_q)
+
+    try:
+        stream = await get_client().chat(
+            model=settings.ollama_model,
+            messages=[{"role": "user", "content": prompt}],
+            stream=True,
+            options={"temperature": 0.3, "num_predict": 512},
+        )
+        async for chunk in stream:
+            token = chunk.get("message", {}).get("content") or ""
+            if token:
+                yield token
+    except Exception:
+        yield "我在这里，请再告诉我一些你的情况，我们慢慢聊。"
