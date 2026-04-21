@@ -96,7 +96,23 @@ async def chat(req: ChatRequest, bg: BackgroundTasks):
         fused_score=fused.score,
     )
 
-    # ------- CHAT: lightweight reply, no side effects -------
+    # Schedule the post-turn dispatcher UNCONDITIONALLY. on_turn_end itself
+    # decides what to actually do based on intent + fused.risk:
+    #   - CHAT + risk=正常/需关注 → no-op
+    #   - CHAT + risk=高风险        → excel + mail (silent-crisis case,
+    #                                  doc 2 两层风险判断互补)
+    #   - CONSULT + risk=正常/需关注 → excel only
+    #   - CONSULT + risk=高风险      → excel + mail
+    #   - RISK (any risk)            → excel + mail (force-escalated inside)
+    # This lets the orchestrator own the policy — chat.py just hands it
+    # the full context of the turn.
+    bg.add_task(
+        on_turn_end,
+        req.user_id, req.message, intent,
+        fused.label, fused.score, fused.risk,
+    )
+
+    # ------- CHAT: lightweight reply (side-effect dispatch above) -------
     if intent == "CHAT":
         async def chat_gen() -> AsyncIterator[str]:
             yield sse_event("meta", meta.model_dump_json())
@@ -104,33 +120,15 @@ async def chat(req: ChatRequest, bg: BackgroundTasks):
                 yield frame
         return StreamingResponse(chat_gen(), media_type="text/event-stream")
 
-    # ------- RISK: fast-path, alert BEFORE streaming reply -------
+    # ------- RISK: fast-path crisis comfort stream -------
     if intent == "RISK":
-        # schedule side effects immediately — BackgroundTask runs after the
-        # response finishes but is QUEUED right now so nothing is forgotten
-        bg.add_task(
-            on_turn_end,
-            req.user_id, req.message, "RISK",
-            "高风险", fused.score, "高风险",  # force-escalated inside on_turn_end too
-        )
-
         async def risk_gen() -> AsyncIterator[str]:
             yield sse_event("meta", meta.model_dump_json())
             async for frame in stream_risk_comfort(req.message):
                 yield frame
         return StreamingResponse(risk_gen(), media_type="text/event-stream")
 
-    # ------- CONSULT: agentic RAG stream, then log per fused risk -------
-    # Schedule the side effects upfront — fused is already computed, we have
-    # all args. FastAPI runs background tasks AFTER the response stream
-    # completes, so Excel/mail still land after the user has seen the reply.
-    # Registering inside the generator is timing-fragile; this is safer.
-    bg.add_task(
-        on_turn_end,
-        req.user_id, req.message, "CONSULT",
-        fused.label, fused.score, fused.risk,
-    )
-
+    # ------- CONSULT: agentic RAG stream -------
     async def consult_gen() -> AsyncIterator[str]:
         yield sse_event("meta", meta.model_dump_json())
         async for token in agentic_rag_stream(req.message):

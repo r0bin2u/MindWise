@@ -159,6 +159,20 @@ async def test_on_turn_end_chat_skips_everything(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_on_turn_end_chat_with_high_risk_fires_both(monkeypatch):
+    """Silent-crisis case (doc 2): user typed 'hi' but multimodal fusion
+    scored 高风险 from face + voice. intent=CHAT but dispatcher must NOT
+    early-exit — this is the exact scenario two-layer risk design is
+    supposed to catch."""
+    calls = _patch_mcp(monkeypatch)
+    r = await on_turn_end("u_silent", "今天吃什么", "CHAT",
+                          "高风险", 2.3, "高风险")
+    assert r == {"excel": True, "mail": True}
+    assert len(calls["excel"]) == 1
+    assert len(calls["mail"]) == 1
+
+
+@pytest.mark.asyncio
 async def test_on_turn_end_consult_normal_writes_excel_only(monkeypatch):
     calls = _patch_mcp(monkeypatch)
     r = await on_turn_end("u2", "stressed", "CONSULT", "焦虑", 1.8, "需关注")

@@ -68,16 +68,40 @@ def _body(msg="hi"):
     return {"user_id": "u1", "message": msg}
 
 
-def test_chat_branch_picks_plain_stream_and_skips_side_effects(monkeypatch):
+def test_chat_branch_picks_plain_stream_and_forwards_intent(monkeypatch):
+    """Normal CHAT + fused.risk=正常: on_turn_end is still called (policy
+    lives inside the dispatcher now), but it'll early-exit internally.
+    At the chat.py layer we just need to verify the right stream fired
+    and the dispatcher got the correct intent."""
     calls = _patch_all(monkeypatch, intent="CHAT")
     r = client.post("/chat", json=_body())
     assert r.status_code == 200
     body = r.text
-    assert "hi" in body                        # plain stream content
+    assert "hi" in body
     assert calls["stream_plain"] == 1
     assert calls["stream_risk"] == 0
     assert calls["rag_stream"] == 0
-    assert calls["on_turn_end_args"] == []    # CHAT never triggers MCP
+    # dispatcher is ALWAYS called; it decides policy based on (intent, risk)
+    assert len(calls["on_turn_end_args"]) == 1
+    assert calls["on_turn_end_args"][0][2] == "CHAT"
+
+
+def test_chat_with_high_risk_fused_triggers_mcp(monkeypatch):
+    """Silent-crisis case (doc 2): user types 'hi' casually but video/
+    audio fusion flagged 高风险. intent=CHAT but dispatcher must still
+    receive risk='高风险' so the orchestrator fires excel + mail."""
+    fused = FusionResult(score=2.5, label="高风险", risk="高风险",
+                         source="deterministic")
+    calls = _patch_all(monkeypatch, intent="CHAT", fused=fused)
+    r = client.post("/chat", json=_body("今天吃什么"))
+    assert r.status_code == 200
+    # still streams the plain chat reply to the user (don't alarm them)
+    assert calls["stream_plain"] == 1
+    # but dispatcher gets the full context and the risk=高风险 flag
+    assert len(calls["on_turn_end_args"]) == 1
+    args = calls["on_turn_end_args"][0]
+    assert args[2] == "CHAT"
+    assert args[5] == "高风险"
 
 
 def test_risk_branch_streams_comfort_and_queues_alert(monkeypatch):
@@ -89,13 +113,11 @@ def test_risk_branch_streams_comfort_and_queues_alert(monkeypatch):
     assert calls["stream_risk"] == 1
     assert calls["stream_plain"] == 0
     assert calls["rag_stream"] == 0
-    # BackgroundTask fired with RISK intent + 高风险 forced
+    # BackgroundTask fired with RISK intent — on_turn_end itself force-
+    # escalates emotion_label and risk to 高风险 internally.
     assert len(calls["on_turn_end_args"]) == 1
     args = calls["on_turn_end_args"][0]
-    # (user_id, message, intent, emotion_label, score, risk)
     assert args[2] == "RISK"
-    assert args[3] == "高风险"
-    assert args[5] == "高风险"
 
 
 def test_consult_branch_streams_rag_and_logs_with_fused_risk(monkeypatch):

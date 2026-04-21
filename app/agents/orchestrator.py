@@ -143,8 +143,14 @@ async def on_turn_end(
     """
     actions = {"excel": False, "mail": False}
 
-    if intent == "CHAT":
-        return actions  # never touch Excel or mail for chat
+    # "Silent crisis" case (doc 2 两层风险判断互补): user types something
+    # casual like "今天天气不错" but face + voice score 高风险 via the
+    # multimodal fusion upstream. Text-only intent says CHAT, but we must
+    # NOT skip excel + mail in that case — that's exactly the case where
+    # the two-layer design is supposed to catch them.
+    # So CHAT skips only when the fused risk band is ALSO benign.
+    if intent == "CHAT" and risk != "高风险":
+        return actions
 
     # RISK intent is an explicit distress signal (user said something like
     # "我想死") — force-escalate regardless of what the fused risk band
@@ -155,6 +161,9 @@ async def on_turn_end(
         if emotion_label != "高风险":
             emotion_label = "高风险"
 
+    # Alert when: explicit distress (intent=RISK) OR multimodal says
+    # high-risk (fused.risk=高风险) — the latter covers the silent-crisis
+    # case where intent is still CHAT.
     should_alert = intent == "RISK" or risk == "高风险"
 
     try:
