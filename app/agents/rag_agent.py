@@ -1,7 +1,10 @@
 """Agentic RAG via LangGraph StateGraph.
 
 Design reference: doc sections 8 (Agentic RAG) + 14.2 (LangGraph usage),
-and the design image showing the {thought, action, query} JSON contract.
+and the design image showing the {think, action, query} JSON contract.
+Field name is 'think' (per the image), not 'thought' — the md doc's 8.2
+sample code said 'thought' but 8.3 and the image both say 'think'; image
+wins because it's the more recent design source.
 
 Graph shape:
     think ── route ──► retrieve ──► think
@@ -35,25 +38,25 @@ MAX_STEPS = 4
 
 
 class AgentStep(BaseModel):
-    thought: str
+    think: str
     action: Literal["RETRIEVE", "ANSWER"]
     query: str = ""
 
 
-# Verbatim prompt from the design image + doc 8.3. Qwen must reply with
-# strict JSON; we enforce with `format="json"` and pydantic-validate.
-AGENT_PROMPT = """你是智心AI心理咨询助手，必须按以下步骤执行多步推理：
+# Verbatim prompt from the design image. Qwen must reply with strict JSON;
+# we enforce with `format="json"` and pydantic-validate.
+AGENT_PROMPT = """你是智心AI心理咨询助手，必须严格按照以下步骤执行多步推理：
 
-步骤1：理解用户情绪与问题
+步骤1：理解用户问题与情绪状态
 步骤2：判断是否需要查询心理知识库（Chroma）
    - 需要：返回 action = "RETRIEVE"
    - 不需要：返回 action = "ANSWER"
 步骤3：如果需要检索，生成精准的检索关键词
-步骤4：如果问题复杂，支持分步、多轮检索
-步骤5：结合知识库内容，生成专业、温和、安全的回答决策
+步骤4：如果问题复杂，支持分步骤、多轮检索
+步骤5：结合知识库内容，生成专业、温和、安全的回答
 
 【输出格式：严格 JSON，不要其他任何内容】
-{"thought": "你的思考过程", "action": "RETRIEVE | ANSWER", "query": "检索关键词（不需要则为空）"}"""
+{"think": "你的思考过程", "action": "RETRIEVE | ANSWER", "query": "检索关键词（不需要则为空）"}"""
 
 
 # Used by answer_node to turn the accumulated state into a natural-language
@@ -95,7 +98,7 @@ class AgentState(TypedDict):
     step: int          # number of completed retrieve cycles
     last_action: Optional[str]
     last_query: Optional[str]
-    last_thought: Optional[str]
+    last_think: Optional[str]
     final_answer: Optional[str]
 
 
@@ -104,7 +107,7 @@ class AgentState(TypedDict):
 # ---------------------------------------------------------------------------
 
 async def think_node(state: AgentState) -> AgentState:
-    """Ask the LLM for the next {thought, action, query} decision."""
+    """Ask the LLM for the next {think, action, query} decision."""
     resp = await get_client().chat(
         model=settings.ollama_model,
         messages=state["history"],
@@ -117,7 +120,7 @@ async def think_node(state: AgentState) -> AgentState:
     except (ValidationError, ValueError, json.JSONDecodeError):
         # malformed output → force ANSWER so the loop terminates cleanly
         parsed = AgentStep(
-            thought="模型输出不可解析，终止推理以免死循环。",
+            think="模型输出不可解析，终止推理以免死循环。",
             action="ANSWER",
             query="",
         )
@@ -125,7 +128,7 @@ async def think_node(state: AgentState) -> AgentState:
     state["history"].append({"role": "assistant", "content": raw})
     state["last_action"] = parsed.action
     state["last_query"] = parsed.query
-    state["last_thought"] = parsed.thought
+    state["last_think"] = parsed.think
     return state
 
 
@@ -229,7 +232,7 @@ async def agentic_rag(user_q: str) -> dict:
         "step": 0,
         "last_action": None,
         "last_query": None,
-        "last_thought": None,
+        "last_think": None,
         "final_answer": None,
     }
     final = await _get_app().ainvoke(initial)

@@ -12,20 +12,28 @@ from app.agents.rag_agent import (
 # ---------------- AgentStep schema ----------------
 
 def test_agent_step_parses_valid_json():
-    raw = json.dumps({"thought": "分析中", "action": "RETRIEVE", "query": "失眠"})
+    raw = json.dumps({"think": "分析中", "action": "RETRIEVE", "query": "失眠"})
     s = AgentStep.model_validate_json(raw)
     assert s.action == "RETRIEVE"
     assert s.query == "失眠"
+    assert s.think == "分析中"
 
 
 def test_agent_step_answer_no_query():
-    raw = json.dumps({"thought": "直接回答", "action": "ANSWER", "query": ""})
+    raw = json.dumps({"think": "直接回答", "action": "ANSWER", "query": ""})
     s = AgentStep.model_validate_json(raw)
     assert s.action == "ANSWER"
 
 
 def test_agent_step_rejects_invalid_action():
-    raw = json.dumps({"thought": "x", "action": "FOO", "query": ""})
+    raw = json.dumps({"think": "x", "action": "FOO", "query": ""})
+    with pytest.raises(Exception):
+        AgentStep.model_validate_json(raw)
+
+
+def test_agent_step_rejects_legacy_thought_field():
+    """'thought' is the wrong field name per the design image — must reject."""
+    raw = json.dumps({"thought": "x", "action": "ANSWER", "query": ""})
     with pytest.raises(Exception):
         AgentStep.model_validate_json(raw)
 
@@ -66,7 +74,7 @@ async def test_rag_answer_path_no_retrieval(monkeypatch):
     from app.agents import rag_agent as mod
 
     turns = iter([
-        json.dumps({"thought": "闲聊,不需要查库", "action": "ANSWER", "query": ""}),
+        json.dumps({"think": "闲聊,不需要查库", "action": "ANSWER", "query": ""}),
         "嗨，今天怎么样？",  # the answer_node generation call
     ])
 
@@ -88,8 +96,8 @@ async def test_rag_retrieve_then_answer(monkeypatch):
     from app.agents import rag_agent as mod
 
     turns = iter([
-        json.dumps({"thought": "先查库", "action": "RETRIEVE", "query": "失眠"}),
-        json.dumps({"thought": "资料够了", "action": "ANSWER", "query": ""}),
+        json.dumps({"think": "先查库", "action": "RETRIEVE", "query": "失眠"}),
+        json.dumps({"think": "资料够了", "action": "ANSWER", "query": ""}),
         "试试 4-7-8 呼吸法。",
     ])
 
@@ -121,7 +129,7 @@ async def test_rag_max_steps_cap(monkeypatch):
 
     def think_retrieve():
         return {"message": {"content": json.dumps(
-            {"thought": "再查一次", "action": "RETRIEVE", "query": "x"}
+            {"think": "再查一次", "action": "RETRIEVE", "query": "x"}
         )}}
 
     responses = iter(
