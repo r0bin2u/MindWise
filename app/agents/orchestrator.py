@@ -107,8 +107,25 @@ async def classify_intent(text: str) -> Intent:
 
 
 # ---------------------------------------------------------------------------
-# turn-end dispatcher (stub — MCP tool calls land in Stage 7)
+# turn-end dispatcher — MCP tool calls per doc 9.3 trigger matrix
 # ---------------------------------------------------------------------------
+#
+# intent=CHAT                         → no excel, no mail
+# intent=CONSULT + risk in {正常,需关注} → excel only
+# intent=CONSULT + risk=高风险          → excel + mail
+# intent=RISK                          → excel + mail (fast-path distress)
+#
+# Called from the chat route as a BackgroundTask so it runs AFTER the
+# streamed answer has already been delivered to the user. Any exception
+# here is logged-not-raised because failing to write Excel should never
+# take down the chat response to the user.
+
+import logging
+
+from app.agents.mcp_client import send_mail_alert, write_excel
+
+log = logging.getLogger("mindwise.orchestrator")
+
 
 async def on_turn_end(
     user_id: str,
@@ -117,20 +134,33 @@ async def on_turn_end(
     emotion_label: str,
     score: float,
     risk: str,
-) -> None:
-    """Fire the side-effects that come after the stream closes.
+) -> dict[str, bool]:
+    """Dispatch post-turn side-effects.
 
-    Stage 7 will wire these to MCP tools (excel_writer / mail_alert). For
-    now we just log the dispatch decision so the main chat route can call
-    this as a BackgroundTask without breaking.
+    Returns {"excel": bool, "mail": bool} indicating which tools actually
+    ran (useful for logging / tests). Exceptions are caught and logged,
+    never propagated.
     """
+    actions = {"excel": False, "mail": False}
+
     if intent == "CHAT":
-        return  # CHAT never writes Excel or alerts
-    # CONSULT + RISK both log; RISK additionally triggers an alert
-    log_excel = True
-    send_alert = intent == "RISK" or risk == "高风险"
-    # TODO(stage 7): replace prints with MCP calls
-    print(
-        f"[on_turn_end] user={user_id} intent={intent} emotion={emotion_label} "
-        f"score={score} risk={risk} -> excel={log_excel} alert={send_alert}"
-    )
+        return actions  # never touch Excel or mail for chat
+
+    should_alert = intent == "RISK" or risk == "高风险"
+
+    try:
+        await write_excel(user_id, message, emotion_label, score, risk)
+        actions["excel"] = True
+    except Exception as e:
+        log.exception("excel_writer failed: %s", e)
+
+    if should_alert:
+        try:
+            res = await send_mail_alert(user_id, message, emotion_label, score, risk)
+            actions["mail"] = bool(res.get("ok"))
+            if not actions["mail"]:
+                log.warning("mail_alert skipped: %s", res.get("error"))
+        except Exception as e:
+            log.exception("mail_alert failed: %s", e)
+
+    return actions

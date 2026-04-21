@@ -122,16 +122,86 @@ async def test_classify_intent_chat_routing(monkeypatch):
     assert await classify_intent("今天天气怎么样？") == "CHAT"
 
 
-# ---------------- on_turn_end ----------------
+# ---------------- on_turn_end (MCP dispatch matrix) ----------------
+#
+# Doc 9.3 trigger matrix:
+#   CHAT                           → no excel, no mail
+#   CONSULT + risk in {正常,需关注} → excel only
+#   CONSULT + risk=高风险          → excel + mail
+#   RISK (intent fast-path)        → excel + mail
+
+def _patch_mcp(monkeypatch):
+    """Replace write_excel / send_mail_alert with recording fakes."""
+    from app.agents import orchestrator as mod
+
+    calls = {"excel": [], "mail": []}
+
+    async def fake_excel(*args, **kwargs):
+        calls["excel"].append((args, kwargs))
+        return {"ok": True}
+
+    async def fake_mail(*args, **kwargs):
+        calls["mail"].append((args, kwargs))
+        return {"ok": True}
+
+    monkeypatch.setattr(mod, "write_excel", fake_excel)
+    monkeypatch.setattr(mod, "send_mail_alert", fake_mail)
+    return calls
+
 
 @pytest.mark.asyncio
-async def test_on_turn_end_runs_without_error(capsys):
-    # stub just logs — make sure the 3 branches don't throw
-    await on_turn_end("u1", "hi", "CHAT", "正常", 0.0, "正常")
-    await on_turn_end("u2", "stressed", "CONSULT", "焦虑", 1.8, "需关注")
-    await on_turn_end("u3", "want to die", "RISK", "高风险", 3.2, "高风险")
-    # CHAT should be silent, the other two should log something
-    captured = capsys.readouterr()
-    assert "u2" in captured.out
-    assert "u3" in captured.out
-    assert "u1" not in captured.out  # CHAT returned early
+async def test_on_turn_end_chat_skips_everything(monkeypatch):
+    calls = _patch_mcp(monkeypatch)
+    r = await on_turn_end("u1", "hi", "CHAT", "正常", 0.0, "正常")
+    assert r == {"excel": False, "mail": False}
+    assert calls["excel"] == []
+    assert calls["mail"] == []
+
+
+@pytest.mark.asyncio
+async def test_on_turn_end_consult_normal_writes_excel_only(monkeypatch):
+    calls = _patch_mcp(monkeypatch)
+    r = await on_turn_end("u2", "stressed", "CONSULT", "焦虑", 1.8, "需关注")
+    assert r == {"excel": True, "mail": False}
+    assert len(calls["excel"]) == 1
+    assert calls["mail"] == []
+
+
+@pytest.mark.asyncio
+async def test_on_turn_end_consult_high_risk_writes_both(monkeypatch):
+    calls = _patch_mcp(monkeypatch)
+    r = await on_turn_end("u3", "没意思", "CONSULT", "高风险", 2.5, "高风险")
+    assert r == {"excel": True, "mail": True}
+    assert len(calls["excel"]) == 1
+    assert len(calls["mail"]) == 1
+
+
+@pytest.mark.asyncio
+async def test_on_turn_end_risk_intent_writes_both(monkeypatch):
+    """Intent-level RISK (fast-path keyword hit) always alerts, even if
+    fused risk band says 需关注."""
+    calls = _patch_mcp(monkeypatch)
+    r = await on_turn_end("u4", "我想死", "RISK", "高风险", 1.2, "需关注")
+    assert r == {"excel": True, "mail": True}
+
+
+@pytest.mark.asyncio
+async def test_on_turn_end_swallows_excel_failure(monkeypatch):
+    """A failing excel write must not abort the mail alert — both are tried."""
+    from app.agents import orchestrator as mod
+
+    async def boom_excel(*a, **kw):
+        raise RuntimeError("disk full")
+
+    mail_calls = []
+
+    async def record_mail(*a, **kw):
+        mail_calls.append(a)
+        return {"ok": True}
+
+    monkeypatch.setattr(mod, "write_excel", boom_excel)
+    monkeypatch.setattr(mod, "send_mail_alert", record_mail)
+
+    r = await on_turn_end("u5", "x", "RISK", "高风险", 2.1, "高风险")
+    assert r == {"excel": False, "mail": True}
+    assert len(mail_calls) == 1
