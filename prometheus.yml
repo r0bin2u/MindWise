@@ -1,0 +1,17 @@
+# Prometheus scrape config — scrapes the FastAPI app's /metrics endpoint.
+# The app container exposes port 8000 on the compose network, so prom
+# hits it by service name.
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: "mindwise-app"
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["app:8000"]
+
+  - job_name: "prometheus-self"
+    static_configs:
+      - targets: ["localhost:9090"]

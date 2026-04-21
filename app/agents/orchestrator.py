@@ -22,6 +22,7 @@ from typing import Literal
 from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
 from app.core.config import settings
+from app.core.tracing import observe
 from app.services.ollama_client import get_client
 
 
@@ -81,6 +82,7 @@ async def _call_model(text: str) -> str:
     return r["message"]["content"]
 
 
+@observe(name="classify_intent")
 async def classify_intent(text: str) -> Intent:
     """Classify a user turn into CHAT / CONSULT / RISK.
 
@@ -123,6 +125,7 @@ async def classify_intent(text: str) -> Intent:
 import logging
 
 from app.agents.mcp_client import send_mail_alert, write_excel
+from app.core.metrics import mcp_tool_total
 
 log = logging.getLogger("mindwise.orchestrator")
 
@@ -169,16 +172,21 @@ async def on_turn_end(
     try:
         await write_excel(user_id, message, emotion_label, score, risk)
         actions["excel"] = True
+        mcp_tool_total.labels(tool="excel_writer", outcome="ok").inc()
     except Exception as e:
+        mcp_tool_total.labels(tool="excel_writer", outcome="fail").inc()
         log.exception("excel_writer failed: %s", e)
 
     if should_alert:
         try:
             res = await send_mail_alert(user_id, message, emotion_label, score, risk)
             actions["mail"] = bool(res.get("ok"))
+            outcome = "ok" if actions["mail"] else "fail"
+            mcp_tool_total.labels(tool="mail_alert", outcome=outcome).inc()
             if not actions["mail"]:
                 log.warning("mail_alert skipped: %s", res.get("error"))
         except Exception as e:
+            mcp_tool_total.labels(tool="mail_alert", outcome="fail").inc()
             log.exception("mail_alert failed: %s", e)
 
     return actions

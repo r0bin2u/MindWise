@@ -1,6 +1,7 @@
 from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
 
 from app.core.config import settings
+from app.core.tracing import observe
 from app.services.ollama_client import get_client
 
 
@@ -39,6 +40,7 @@ async def _call_model(text: str) -> str:
     return r["message"]["content"]
 
 
+@observe(name="text_emotion")
 async def text_emotion(text: str) -> str:
     """Classify user text into one of {正常, 焦虑, 低落, 高风险}.
 

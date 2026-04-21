@@ -22,6 +22,9 @@ services:
     container_name: mindwise-app
     ports:
       - "8000:8000"
+    environment:
+      - OLLAMA_HOST=http://ollama:11434
+      # everything else comes from .env (mounted below)
     env_file: .env
     depends_on:
       - ollama
@@ -30,5 +33,18 @@ services:
       - ./data:/app/data
     restart: unless-stopped
 
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: mindwise-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    depends_on:
+      - app
+    restart: unless-stopped
+
 volumes:
   ollama_data:
+  prometheus_data:
