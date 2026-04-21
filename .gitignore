@@ -12,6 +12,7 @@ data/*.jsonl
 data/*.xlsx
 data/kb/*
 !data/kb/.gitkeep
+data/eval/
 
 checkpoints/
 runs/
