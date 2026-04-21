@@ -31,3 +31,6 @@ wandb/
 checkpoints/
 data/raw/
 *.gguf
+
+details/
+/*.md
