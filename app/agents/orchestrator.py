@@ -17,12 +17,16 @@ labeling pipeline must NOT reuse this regex to auto-tag training data,
 or the model will learn to lean on the regex's coverage instead of the
 actual semantics — leaking the inference-time safety net into training.
 """
+
+import logging
 import re
 from typing import Literal
 
 from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
+from app.agents.mcp_client import send_mail_alert, write_excel
 from app.core.config import settings
+from app.core.metrics import mcp_tool_total
 from app.core.tracing import observe
 from app.services.ollama_client import get_client
 
@@ -122,11 +126,6 @@ async def classify_intent(text: str) -> Intent:
 # streamed answer has already been delivered to the user. Any exception
 # here is logged-not-raised because failing to write Excel should never
 # take down the chat response to the user.
-
-import logging
-
-from app.agents.mcp_client import send_mail_alert, write_excel
-from app.core.metrics import mcp_tool_total
 
 log = logging.getLogger("mindwise.orchestrator")
 

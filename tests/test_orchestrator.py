@@ -10,6 +10,7 @@ from app.agents.orchestrator import (
 
 # ---------------- _extract_intent ----------------
 
+
 def test_extract_exact_label():
     for lbl in INTENTS:
         assert _extract_intent(lbl) == lbl
@@ -39,6 +40,7 @@ def test_extract_returns_none_on_unknown():
 
 
 # ---------------- classify_intent ----------------
+
 
 @pytest.mark.asyncio
 async def test_classify_intent_empty_short_circuits_to_chat():
@@ -124,11 +126,12 @@ async def test_classify_intent_chat_routing(monkeypatch):
 
 # ---------------- on_turn_end (MCP dispatch matrix) ----------------
 #
-# Doc 9.3 trigger matrix:
+# Trigger matrix:
 #   CHAT                           → no excel, no mail
 #   CONSULT + risk in {正常,需关注} → excel only
 #   CONSULT + risk=高风险          → excel + mail
 #   RISK (intent fast-path)        → excel + mail
+
 
 def _patch_mcp(monkeypatch):
     """Replace write_excel / send_mail_alert with recording fakes."""
@@ -160,13 +163,12 @@ async def test_on_turn_end_chat_skips_everything(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_on_turn_end_chat_with_high_risk_fires_both(monkeypatch):
-    """Silent-crisis case (doc 2): user typed 'hi' but multimodal fusion
-    scored 高风险 from face + voice. intent=CHAT but dispatcher must NOT
-    early-exit — this is the exact scenario two-layer risk design is
-    supposed to catch."""
+    """Silent-crisis case: user typed 'hi' but multimodal fusion scored
+    高风险 from face + voice. intent=CHAT but dispatcher must NOT
+    early-exit — this is the exact scenario the two-layer risk design
+    is supposed to catch."""
     calls = _patch_mcp(monkeypatch)
-    r = await on_turn_end("u_silent", "今天吃什么", "CHAT",
-                          "高风险", 2.3, "高风险")
+    r = await on_turn_end("u_silent", "今天吃什么", "CHAT", "高风险", 2.3, "高风险")
     assert r == {"excel": True, "mail": True}
     assert len(calls["excel"]) == 1
     assert len(calls["mail"]) == 1
@@ -194,7 +196,7 @@ async def test_on_turn_end_consult_high_risk_writes_both(monkeypatch):
 async def test_on_turn_end_risk_intent_writes_both(monkeypatch):
     """Intent-level RISK (fast-path keyword hit) always alerts, even if
     fused risk band says 需关注."""
-    calls = _patch_mcp(monkeypatch)
+    _patch_mcp(monkeypatch)
     r = await on_turn_end("u4", "我想死", "RISK", "高风险", 1.2, "需关注")
     assert r == {"excel": True, "mail": True}
 
@@ -227,8 +229,8 @@ async def test_on_turn_end_risk_intent_force_escalates_excel_fields(monkeypatch)
     assert len(excel_args) == 1
     call_args, _ = excel_args[0]
     # positional: user_id, message, emotion_label, score, risk_level
-    assert call_args[2] == "高风险"   # emotion_label force-escalated
-    assert call_args[4] == "高风险"   # risk_level force-escalated
+    assert call_args[2] == "高风险"  # emotion_label force-escalated
+    assert call_args[4] == "高风险"  # risk_level force-escalated
 
 
 @pytest.mark.asyncio

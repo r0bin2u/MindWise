@@ -19,6 +19,7 @@ Why LangGraph here: a while-loop would hide the state transitions in
 local variables; LangGraph makes the graph explicit and easy to extend
 (add a new node + edge = one-line change) and trace.
 """
+
 from __future__ import annotations
 
 import json
@@ -93,7 +94,7 @@ class AgentState(TypedDict):
     user_q: str
     history: list[dict]
     docs: list[dict]  # retrieved passages across all steps
-    step: int          # number of completed retrieve cycles
+    step: int  # number of completed retrieve cycles
     last_action: Optional[str]
     last_query: Optional[str]
     last_think: Optional[str]
@@ -103,6 +104,7 @@ class AgentState(TypedDict):
 # ---------------------------------------------------------------------------
 # nodes
 # ---------------------------------------------------------------------------
+
 
 async def think_node(state: AgentState) -> AgentState:
     """Ask the LLM for the next {think, action, query} decision."""
@@ -136,10 +138,12 @@ async def retrieve_node(state: AgentState) -> AgentState:
     passages = retrieve(q, k=3, neighbors=1)
     state["docs"].extend(passages)
 
-    state["history"].append({
-        "role": "user",
-        "content": f"第 {state['step'] + 1} 轮检索结果：\n{format_passages(passages)}\n\n请继续推理，决定下一步是再次检索还是给出最终答案。",
-    })
+    state["history"].append(
+        {
+            "role": "user",
+            "content": f"第 {state['step'] + 1} 轮检索结果：\n{format_passages(passages)}\n\n请继续推理，决定下一步是再次检索还是给出最终答案。",
+        }
+    )
     state["step"] += 1
     return state
 
@@ -188,6 +192,7 @@ def route_after_think(state: AgentState) -> str:
 # graph
 # ---------------------------------------------------------------------------
 
+
 def build_graph():
     g = StateGraph(AgentState)
     g.add_node("think", think_node)
@@ -196,7 +201,8 @@ def build_graph():
 
     g.set_entry_point("think")
     g.add_conditional_edges(
-        "think", route_after_think,
+        "think",
+        route_after_think,
         {"retrieve": "retrieve", "answer": "answer"},
     )
     g.add_edge("retrieve", "think")
@@ -245,6 +251,7 @@ async def agentic_rag(user_q: str) -> dict:
 # streaming variant for the /chat endpoint
 # ---------------------------------------------------------------------------
 
+
 async def agentic_rag_stream(user_q: str):
     """Streaming variant of agentic_rag.
 
@@ -261,8 +268,6 @@ async def agentic_rag_stream(user_q: str):
     ]
     docs: list[dict] = []
     step = 0
-    last_action: Optional[str] = None
-    last_query: Optional[str] = None
 
     # ---- think/retrieve cycles (unchanged logic, just inline) ----
     while step < MAX_STEPS:
@@ -282,18 +287,18 @@ async def agentic_rag_stream(user_q: str):
                 query="",
             )
         history.append({"role": "assistant", "content": raw})
-        last_action = parsed.action
-        last_query = parsed.query
 
         if parsed.action == "ANSWER":
             break
 
         passages = retrieve(parsed.query or user_q, k=3, neighbors=1)
         docs.extend(passages)
-        history.append({
-            "role": "user",
-            "content": f"第 {step + 1} 轮检索结果：\n{format_passages(passages)}\n\n请继续推理，决定下一步是再次检索还是给出最终答案。",
-        })
+        history.append(
+            {
+                "role": "user",
+                "content": f"第 {step + 1} 轮检索结果：\n{format_passages(passages)}\n\n请继续推理，决定下一步是再次检索还是给出最终答案。",
+            }
+        )
         step += 1
 
     # ---- stream the final answer generation ----

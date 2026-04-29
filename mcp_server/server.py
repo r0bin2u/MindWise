@@ -16,6 +16,7 @@ The same tool functions are imported directly by app/agents/mcp_client
 for the in-process low-latency path; running this standalone server is
 what lets Claude Desktop / IDEs / any MCP client also invoke the tools.
 """
+
 from __future__ import annotations
 
 from mcp.server.fastmcp import FastMCP

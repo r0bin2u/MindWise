@@ -26,6 +26,7 @@ so browsers can consume it with native EventSource. Side effects always
 run AFTER the stream closes via FastAPI BackgroundTasks — a failed tool
 call never breaks the chat reply.
 """
+
 from __future__ import annotations
 
 from typing import AsyncIterator, Optional
@@ -61,13 +62,14 @@ class ChatRequest(BaseModel):
     message: str
     session_id: Optional[str] = None
     # already-processed modality outputs from /emotion/audio and /emotion/video
-    audio_emotion: Optional[str] = None     # label
-    video_emotion: Optional[str] = None     # label
-    video_score: Optional[float] = None     # raw MediaPipe score
+    audio_emotion: Optional[str] = None  # label
+    video_emotion: Optional[str] = None  # label
+    video_score: Optional[float] = None  # raw MediaPipe score
 
 
 class ChatResponseMeta(BaseModel):
     """Header sent as the first SSE event so frontends know routing details."""
+
     session_id: str
     intent: str
     emotion_label: str
@@ -124,24 +126,32 @@ async def chat(req: ChatRequest, bg: BackgroundTasks):
     # the full context of the turn.
     bg.add_task(
         on_turn_end,
-        req.user_id, req.message, intent,
-        fused.label, fused.score, fused.risk,
+        req.user_id,
+        req.message,
+        intent,
+        fused.label,
+        fused.score,
+        fused.risk,
     )
 
     # ------- CHAT: lightweight reply (side-effect dispatch above) -------
     if intent == "CHAT":
+
         async def chat_gen() -> AsyncIterator[str]:
             yield sse_event("meta", meta.model_dump_json())
             async for frame in stream_plain(req.message):
                 yield frame
+
         return StreamingResponse(chat_gen(), media_type="text/event-stream")
 
     # ------- RISK: fast-path crisis comfort stream -------
     if intent == "RISK":
+
         async def risk_gen() -> AsyncIterator[str]:
             yield sse_event("meta", meta.model_dump_json())
             async for frame in stream_risk_comfort(req.message):
                 yield frame
+
         return StreamingResponse(risk_gen(), media_type="text/event-stream")
 
     # ------- CONSULT: agentic RAG stream -------

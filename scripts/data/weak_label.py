@@ -63,8 +63,9 @@ def main():
     ap.add_argument("--model", default="qwen2.5:7b")
     ap.add_argument("--host", default="http://localhost:11434")
     ap.add_argument("--threshold", type=float, default=0.7)
-    ap.add_argument("--max-samples", type=int, default=None,
-                    help="cap on labeled records for a quick run")
+    ap.add_argument(
+        "--max-samples", type=int, default=None, help="cap on labeled records for a quick run"
+    )
     args = ap.parse_args()
 
     client = ollama.Client(host=args.host)
@@ -76,7 +77,7 @@ def main():
     stats = Counter()
     label_dist = Counter()
 
-    lines = [l for l in inp.read_text(encoding="utf-8").splitlines() if l.strip()]
+    lines = [ln for ln in inp.read_text(encoding="utf-8").splitlines() if ln.strip()]
 
     with out.open("w", encoding="utf-8") as w:
         for line in tqdm(lines, desc="labeling"):
@@ -103,10 +104,12 @@ def main():
                 stats["low_conf"] += 1
                 continue
 
-            w.write(json.dumps(
-                {"text": text, "label": label, "confidence": round(conf, 3)},
-                ensure_ascii=False
-            ) + "\n")
+            w.write(
+                json.dumps(
+                    {"text": text, "label": label, "confidence": round(conf, 3)}, ensure_ascii=False
+                )
+                + "\n"
+            )
             stats["kept"] += 1
             label_dist[label] += 1
 

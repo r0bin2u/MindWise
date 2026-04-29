@@ -54,11 +54,17 @@ def main():
                 dropped["bad_label"] += 1
                 continue
 
-            w.write(json.dumps({
-                "instruction": INSTRUCTION,
-                "input": anonymize(text),
-                "output": label,
-            }, ensure_ascii=False) + "\n")
+            w.write(
+                json.dumps(
+                    {
+                        "instruction": INSTRUCTION,
+                        "input": anonymize(text),
+                        "output": label,
+                    },
+                    ensure_ascii=False,
+                )
+                + "\n"
+            )
             kept += 1
             dist[label] += 1
 

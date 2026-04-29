@@ -13,6 +13,7 @@ Kept as a pure function so it can be called either through the MCP
 server (production) or directly from tests and the in-process client
 (latency-sensitive on_turn_end path).
 """
+
 from __future__ import annotations
 
 import threading

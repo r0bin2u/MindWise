@@ -12,6 +12,7 @@ Two pieces here:
 All functions here yield **already-SSE-framed strings**, so chat.py can
 pass them straight to StreamingResponse without further wrapping.
 """
+
 from __future__ import annotations
 
 from typing import AsyncIterator
@@ -23,6 +24,7 @@ from app.services.ollama_client import get_client
 # ---------------------------------------------------------------------------
 # SSE framing
 # ---------------------------------------------------------------------------
+
 
 def sse_frame(text: str) -> str:
     """Format a piece of text as an SSE data frame.

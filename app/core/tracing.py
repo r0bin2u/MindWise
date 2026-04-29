@@ -9,9 +9,9 @@ If LANGFUSE_PUBLIC_KEY isn't set we skip initialization entirely and
 the decorator becomes a pass-through — no overhead, no errors in
 local-only runs.
 """
+
 from __future__ import annotations
 
-import functools
 from typing import Any, Callable
 
 from app.core.config import settings
@@ -28,6 +28,7 @@ def init_langfuse() -> None:
         return  # silently disabled
     try:
         from langfuse import Langfuse
+
         _client = Langfuse(
             public_key=settings.langfuse_public_key,
             secret_key=settings.langfuse_secret_key,
@@ -37,6 +38,7 @@ def init_langfuse() -> None:
     except Exception as e:
         # never crash startup over observability
         import logging
+
         logging.getLogger("mindwise").warning(f"Langfuse init failed: {e}")
 
 
@@ -53,6 +55,7 @@ def observe(name: str | None = None):
 
     Works on both sync and async functions.
     """
+
     def decorator(func: Callable) -> Callable:
         if not _enabled:
             # bind at decoration time — if langfuse wasn't up at app
@@ -60,9 +63,11 @@ def observe(name: str | None = None):
             return func
         try:
             from langfuse.decorators import observe as _observe
+
             return _observe(name=name or func.__name__)(func)
         except Exception:
             return func
+
     return decorator
 
 

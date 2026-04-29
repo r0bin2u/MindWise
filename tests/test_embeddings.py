@@ -10,6 +10,7 @@ from app.services.embeddings import (
 
 # ---------------- _resolve_backend ----------------
 
+
 def test_resolve_backend_defaults_to_sentence_transformer():
     assert _resolve_backend(None) == BACKEND_SENTENCE_TRANSFORMER
 
@@ -31,11 +32,13 @@ def test_resolve_backend_rejects_unknown():
 
 # ---------------- make_embedding_function ----------------
 
+
 def test_make_embedding_function_openai_needs_api_key(monkeypatch):
     """Requesting the openai backend without a key should fail loudly —
     better to see a clear RuntimeError at build time than mysterious
     retrieval errors after the KB is already populated."""
     from app.services import embeddings as mod
+
     monkeypatch.setattr(mod.settings, "openai_api_key", "")
     with pytest.raises(RuntimeError, match="OPENAI_API_KEY"):
         make_embedding_function(backend="openai")

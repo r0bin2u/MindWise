@@ -1,4 +1,5 @@
 """Shared async Ollama client. Avoids instantiating a new client per call."""
+
 from ollama import AsyncClient
 
 from app.core.config import settings

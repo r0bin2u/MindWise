@@ -1,7 +1,7 @@
 import argparse
 import json
 import time
-from collections import Counter, defaultdict
+from collections import Counter
 from pathlib import Path
 
 import ollama
@@ -86,21 +86,28 @@ def prf(cm, label):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--model", required=True,
-                    help="ollama model tag, e.g. qwen2.5:7b or qwen2.5-7b-psychqa")
+    ap.add_argument(
+        "--model", required=True, help="ollama model tag, e.g. qwen2.5:7b or qwen2.5-7b-psychqa"
+    )
     ap.add_argument("--test", default="data/test.jsonl")
     ap.add_argument("--host", default="http://localhost:11434")
-    ap.add_argument("--pred-out", default=None,
-                    help="optional path to dump per-item predictions")
+    ap.add_argument("--pred-out", default=None, help="optional path to dump per-item predictions")
     ap.add_argument("--limit", type=int, default=None)
-    ap.add_argument("--prompt-style", choices=["instr", "json"], default="instr",
-                    help="instr: training-matched plain-label prompt; "
-                         "json: JSON-output prompt (more generic)")
+    ap.add_argument(
+        "--prompt-style",
+        choices=["instr", "json"],
+        default="instr",
+        help="instr: training-matched plain-label prompt; json: JSON-output prompt (more generic)",
+    )
     args = ap.parse_args()
 
     client = ollama.Client(host=args.host)
 
-    rows = [json.loads(l) for l in Path(args.test).read_text(encoding="utf-8").splitlines() if l.strip()]
+    rows = [
+        json.loads(line)
+        for line in Path(args.test).read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
     if args.limit:
         rows = rows[: args.limit]
 
@@ -116,8 +123,7 @@ def main():
             parse_fail += 1
             pred = "正常"  # fall back; still counted against accuracy
         cm[truth][pred] += 1
-        preds.append({"input": text, "truth": truth, "pred": pred,
-                      "source": r.get("source")})
+        preds.append({"input": text, "truth": truth, "pred": pred, "source": r.get("source")})
 
     if args.pred_out:
         Path(args.pred_out).parent.mkdir(parents=True, exist_ok=True)
@@ -131,15 +137,15 @@ def main():
     acc = correct / total
 
     print(f"\n==== {args.model} on {args.test} ====")
-    print(f"total={total}  correct={correct}  accuracy={acc*100:.2f}%  parse_fail={parse_fail}")
+    print(f"total={total}  correct={correct}  accuracy={acc * 100:.2f}%  parse_fail={parse_fail}")
     print(f"\n{'class':<8}{'n':>6}{'P':>8}{'R':>8}{'F1':>8}")
     f1s = []
     for lbl in LABELS:
         n = sum(cm[lbl].values())
         p, r, f1 = prf(cm, lbl)
         f1s.append(f1)
-        print(f"{lbl:<8}{n:>6}{p*100:>7.1f}%{r*100:>7.1f}%{f1*100:>7.1f}%")
-    print(f"macro-F1 = {sum(f1s)/len(f1s)*100:.2f}%")
+        print(f"{lbl:<8}{n:>6}{p * 100:>7.1f}%{r * 100:>7.1f}%{f1 * 100:>7.1f}%")
+    print(f"macro-F1 = {sum(f1s) / len(f1s) * 100:.2f}%")
 
     print("\nconfusion matrix (row=truth, col=pred):")
     print(" " * 6 + "".join(f"{c:>8}" for c in LABELS))
@@ -147,7 +153,7 @@ def main():
         print(f"{t:<6}" + "".join(f"{cm[t][c]:>8}" for c in LABELS))
 
     hr_recall = prf(cm, "高风险")[1]
-    print(f"\nHIGH-RISK RECALL = {hr_recall*100:.1f}%  (漏判代价最大，目标 >= 95%)")
+    print(f"\nHIGH-RISK RECALL = {hr_recall * 100:.1f}%  (漏判代价最大，目标 >= 95%)")
 
 
 if __name__ == "__main__":

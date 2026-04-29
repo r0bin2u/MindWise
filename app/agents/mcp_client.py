@@ -18,6 +18,7 @@ The function signatures mirror the @mcp.tool()-decorated entries in
 server.py, so code calling write_excel() / send_mail_alert() here is
 equivalent to a real MCP JSON-RPC call in effect.
 """
+
 from __future__ import annotations
 
 from typing import Any

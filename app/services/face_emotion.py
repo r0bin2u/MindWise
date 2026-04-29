@@ -23,11 +23,28 @@ R_EYE_UP, R_EYE_DOWN = 386, 374
 # cheek + lip keypoint bundle for tension dispersion
 CHEEK_LIP = [
     # left cheek
-    50, 101, 205, 207, 214,
+    50,
+    101,
+    205,
+    207,
+    214,
     # right cheek
-    280, 330, 425, 427, 434,
+    280,
+    330,
+    425,
+    427,
+    434,
     # upper & lower lip contour
-    61, 84, 17, 314, 291, 0, 13, 14, 81, 178,
+    61,
+    84,
+    17,
+    314,
+    291,
+    0,
+    13,
+    14,
+    81,
+    178,
 ]
 
 
@@ -78,15 +95,14 @@ def face_to_emotion(bgr_image: np.ndarray) -> dict | None:
 
     # eyebrow: inner end dropping below outer end = frown
     brow_drop = (
-        (lm[L_BROW_INNER].y - lm[L_BROW_OUTER].y)
-        + (lm[R_BROW_INNER].y - lm[R_BROW_OUTER].y)
-    ) / 2 / face_w
+        ((lm[L_BROW_INNER].y - lm[L_BROW_OUTER].y) + (lm[R_BROW_INNER].y - lm[R_BROW_OUTER].y))
+        / 2
+        / face_w
+    )
 
     # mouth corners vs mouth midpoint (positive = drooping)
     mouth_mid_y = (lm[LIP_UP].y + lm[LIP_DOWN].y) / 2
-    mouth_drop = (
-        (lm[MOUTH_L].y - mouth_mid_y) + (lm[MOUTH_R].y - mouth_mid_y)
-    ) / 2 / face_w
+    mouth_drop = ((lm[MOUTH_L].y - mouth_mid_y) + (lm[MOUTH_R].y - mouth_mid_y)) / 2 / face_w
 
     # eye opening: smaller = more closed
     eye_open = (_d(lm, L_EYE_UP, L_EYE_DOWN) + _d(lm, R_EYE_UP, R_EYE_DOWN)) / 2 / face_w

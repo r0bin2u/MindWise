@@ -5,6 +5,7 @@ the same source and splice them back in original order. This recovers the
 surrounding context that a 512-token chunk boundary may have broken,
 without having to retrieve at a coarser granularity.
 """
+
 from __future__ import annotations
 
 from functools import lru_cache
@@ -24,9 +25,7 @@ def _get_collection():
     client = chromadb.PersistentClient(path=settings.chroma_path)
     # backend selection comes from env / settings, same factory as build_kb
     ef = make_embedding_function()
-    return client.get_or_create_collection(
-        name=DEFAULT_COLLECTION, embedding_function=ef
-    )
+    return client.get_or_create_collection(name=DEFAULT_COLLECTION, embedding_function=ef)
 
 
 def _fetch_neighbors(col, source: str, lo: int, hi: int) -> list[dict]:

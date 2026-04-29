@@ -20,6 +20,7 @@ Missing-modality policy is **conservative**: missing channel contributes 0,
 weights stay fixed (no normalization). Better to under-estimate from a
 lucky channel than to over-escalate and burn counselor trust.
 """
+
 import json
 from typing import Literal, Optional
 
@@ -59,6 +60,7 @@ class ModalOut(BaseModel):
            (from MediaPipe geometric rules). text/audio pass through the
            SCORE_MAP inside the fusion formula.
     """
+
     label: Optional[str] = None
     score: Optional[float] = None
 
@@ -73,6 +75,7 @@ class FusionResult(BaseModel):
 # ----------------------------------------------------------------------------
 # deterministic path (production default)
 # ----------------------------------------------------------------------------
+
 
 def _risk_band(score: float) -> str:
     if score >= 2.0:
@@ -178,6 +181,7 @@ async def _llm_fuse(vision: ModalOut, audio: ModalOut, text: ModalOut) -> Fusion
 # ----------------------------------------------------------------------------
 # public entrypoint
 # ----------------------------------------------------------------------------
+
 
 async def fuse(
     vision: ModalOut | None = None,

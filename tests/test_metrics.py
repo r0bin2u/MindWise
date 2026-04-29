@@ -4,6 +4,7 @@ Verify that the counters actually tick on the right events. We read the
 `.labels(...).._value.get()` internal value instead of scraping /metrics
 because in-process tests don't need the HTTP layer.
 """
+
 from app.core.metrics import (
     fused_risk_total,
     intent_total,
@@ -15,7 +16,9 @@ from app.core.metrics import (
 def _val(counter):
     """Sum of all label-combo values for a Counter (int)."""
     return sum(
-        m.value for fam in counter.collect() for m in fam.samples
+        m.value
+        for fam in counter.collect()
+        for m in fam.samples
         if m.name.endswith("_total") and not m.name.endswith("_created")
     )
 
@@ -47,4 +50,6 @@ def test_mcp_tool_counter_tracks_outcome():
     mcp_tool_total.labels(tool="excel_writer", outcome="fail").inc(2)
 
     assert mcp_tool_total.labels(tool="excel_writer", outcome="ok")._value.get() == ok_before + 1
-    assert mcp_tool_total.labels(tool="excel_writer", outcome="fail")._value.get() == fail_before + 2
+    assert (
+        mcp_tool_total.labels(tool="excel_writer", outcome="fail")._value.get() == fail_before + 2
+    )

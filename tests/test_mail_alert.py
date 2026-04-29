@@ -18,9 +18,15 @@ def test_build_message_subject_and_body():
     assert "S2025007" in msg["Subject"]
 
     body = msg.get_content()
-    # all 6 required fields present per doc 9.5
-    for token in ["S2025007", "活着没什么意思", "高风险", "2.93",
-                  "2026-03-13 22:01:10", "自动存档"]:
+    # all 6 required fields must be in the body
+    for token in [
+        "S2025007",
+        "活着没什么意思",
+        "高风险",
+        "2.93",
+        "2026-03-13 22:01:10",
+        "自动存档",
+    ]:
         assert token in body
 
     assert msg["From"] == "ops@school.edu"
@@ -30,6 +36,7 @@ def test_build_message_subject_and_body():
 @pytest.mark.asyncio
 async def test_send_alert_skips_when_no_recipients(monkeypatch):
     from mcp_server.tools import mail_alert as mod
+
     monkeypatch.setattr(mod.settings, "alert_to", "")
 
     r = await send_alert("U1", "x", "高风险", 2.1, "高风险")
@@ -41,6 +48,7 @@ async def test_send_alert_skips_when_no_recipients(monkeypatch):
 async def test_send_alert_uses_injected_sender(monkeypatch):
     """send_fn dependency injection bypasses SMTP — pure unit test."""
     from mcp_server.tools import mail_alert as mod
+
     monkeypatch.setattr(mod.settings, "alert_to", "a@x,b@x")
 
     captured = {}
@@ -69,6 +77,7 @@ async def test_send_alert_uses_injected_sender(monkeypatch):
 async def test_send_alert_reports_missing_smtp_host(monkeypatch):
     """No send_fn, no SMTP_HOST → graceful error, no exception."""
     from mcp_server.tools import mail_alert as mod
+
     monkeypatch.setattr(mod.settings, "alert_to", "c@x")
     monkeypatch.setattr(mod.settings, "smtp_host", "")
 

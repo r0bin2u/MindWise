@@ -20,6 +20,7 @@ must match the one used at query time. Vectors from different models live
 in different spaces — mixing them silently breaks retrieval. If you switch
 backends, drop `data/kb/` and rebuild (`python -m scripts.build_kb --rebuild`).
 """
+
 from chromadb.utils import embedding_functions
 
 from app.core.config import settings
@@ -40,8 +41,7 @@ def _resolve_backend(backend: str | None) -> str:
     if b in ("sentence_transformer", "st", "bge", "local"):
         return BACKEND_SENTENCE_TRANSFORMER
     raise ValueError(
-        f"unknown embedding backend: {backend!r}. "
-        f"Expected 'sentence_transformer' or 'openai'."
+        f"unknown embedding backend: {backend!r}. Expected 'sentence_transformer' or 'openai'."
     )
 
 

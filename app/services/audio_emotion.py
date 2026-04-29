@@ -12,6 +12,7 @@ def _whisper_lazy():
     global _whisper
     if _whisper is None:
         from faster_whisper import WhisperModel
+
         _whisper = WhisperModel("medium", device="cuda", compute_type="float16")
     return _whisper
 
@@ -19,7 +20,10 @@ def _whisper_lazy():
 @retry(stop=stop_after_attempt(2), wait=wait_exponential(multiplier=0.5, min=0.5, max=2))
 def _transcribe(audio_path: str, language: str) -> str:
     segments, _info = _whisper_lazy().transcribe(
-        audio_path, language=language, beam_size=5, vad_filter=True,
+        audio_path,
+        language=language,
+        beam_size=5,
+        vad_filter=True,
     )
     return "".join(s.text for s in segments).strip()
 

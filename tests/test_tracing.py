@@ -4,6 +4,7 @@ The key property is graceful no-op when Langfuse isn't configured (no
 keys in env). We don't need to test the actual Langfuse SDK — just that
 our wrapper doesn't crash and doesn't add overhead when disabled.
 """
+
 from app.core import tracing
 
 
@@ -15,6 +16,7 @@ def test_is_enabled_defaults_to_false():
 def test_observe_is_passthrough_when_disabled():
     """@observe decorator should return the original function unchanged
     when Langfuse isn't configured, so there's zero overhead."""
+
     @tracing.observe(name="foo")
     def plain_fn(x):
         return x * 2

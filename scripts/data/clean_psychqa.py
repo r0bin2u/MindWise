@@ -69,8 +69,9 @@ def main():
     ap.add_argument("--text-field", default="question")
     ap.add_argument("--min-len", type=int, default=MIN_LEN)
     ap.add_argument("--max-len", type=int, default=MAX_LEN)
-    ap.add_argument("--no-anonymize", action="store_true",
-                    help="skip the PII anonymizer (default: on)")
+    ap.add_argument(
+        "--no-anonymize", action="store_true", help="skip the PII anonymizer (default: on)"
+    )
     args = ap.parse_args()
 
     inp = Path(args.input)

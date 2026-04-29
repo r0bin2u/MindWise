@@ -33,9 +33,9 @@ LABELS = ["正常", "焦虑", "低落", "高风险"]
 
 def load_rows(path):
     return [
-        json.loads(l)
-        for l in Path(path).read_text(encoding="utf-8").splitlines()
-        if l.strip()
+        json.loads(line)
+        for line in Path(path).read_text(encoding="utf-8").splitlines()
+        if line.strip()
     ]
 
 
@@ -63,7 +63,7 @@ def encode_row(row, tokenizer, weight, max_len):
     prompt_ids = tokenizer(prompt_str, add_special_tokens=False)["input_ids"]
     full_ids = tokenizer(full_str, add_special_tokens=False)["input_ids"]
     input_ids = full_ids[:max_len]
-    labels = [-100] * len(prompt_ids) + input_ids[len(prompt_ids):]
+    labels = [-100] * len(prompt_ids) + input_ids[len(prompt_ids) :]
     labels = labels[:max_len]
     while len(labels) < len(input_ids):
         labels.append(-100)
@@ -134,8 +134,12 @@ def main():
     ap.add_argument("--grad-accum", type=int, default=4)
     ap.add_argument("--max-len", type=int, default=1024)
     ap.add_argument("--seed", type=int, default=42)
-    ap.add_argument("--max-steps", type=int, default=-1,
-                    help="if >0, cap training to this many steps (smoke-test)")
+    ap.add_argument(
+        "--max-steps",
+        type=int,
+        default=-1,
+        help="if >0, cap training to this many steps (smoke-test)",
+    )
     args = ap.parse_args()
 
     torch.manual_seed(args.seed)
@@ -228,12 +232,23 @@ def main():
 
     meta = {
         "base_model": args.base_model,
-        "lora": {"r": args.rank, "alpha": args.alpha, "dropout": args.dropout,
-                 "targets": ["q_proj", "v_proj"]},
-        "optim": {"lr": args.lr, "scheduler": "cosine", "warmup_ratio": 0.05,
-                  "optimizer": "paged_adamw_8bit"},
-        "batch": {"micro": args.micro_batch, "grad_accum": args.grad_accum,
-                  "effective": args.micro_batch * args.grad_accum},
+        "lora": {
+            "r": args.rank,
+            "alpha": args.alpha,
+            "dropout": args.dropout,
+            "targets": ["q_proj", "v_proj"],
+        },
+        "optim": {
+            "lr": args.lr,
+            "scheduler": "cosine",
+            "warmup_ratio": 0.05,
+            "optimizer": "paged_adamw_8bit",
+        },
+        "batch": {
+            "micro": args.micro_batch,
+            "grad_accum": args.grad_accum,
+            "effective": args.micro_batch * args.grad_accum,
+        },
         "epochs": args.epochs,
         "class_weights": weights,
         "best_eval_loss": trainer.state.best_metric,

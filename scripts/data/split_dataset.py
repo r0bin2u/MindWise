@@ -28,11 +28,17 @@ def dump_sft(rows, path):
     Path(path).parent.mkdir(parents=True, exist_ok=True)
     with open(path, "w", encoding="utf-8") as f:
         for r in rows:
-            f.write(json.dumps({
-                "instruction": INSTRUCTION,
-                "input": r["text"],
-                "output": r["label"],
-            }, ensure_ascii=False) + "\n")
+            f.write(
+                json.dumps(
+                    {
+                        "instruction": INSTRUCTION,
+                        "input": r["text"],
+                        "output": r["label"],
+                    },
+                    ensure_ascii=False,
+                )
+                + "\n"
+            )
 
 
 def main():
@@ -44,7 +50,11 @@ def main():
     ap.add_argument("--seed", type=int, default=42)
     args = ap.parse_args()
 
-    rows = [json.loads(l) for l in Path(args.input).read_text(encoding="utf-8").splitlines() if l.strip()]
+    rows = [
+        json.loads(line)
+        for line in Path(args.input).read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
     train, val = stratified_split(rows, args.ratio, args.seed)
 
     dump_sft(train, args.train)

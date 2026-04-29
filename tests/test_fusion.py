@@ -11,16 +11,19 @@ from app.services.fusion import (
 
 # ---------------- compute_deterministic ----------------
 
+
 def test_compute_three_normal():
-    r = compute_deterministic(ModalOut(label="正常"), ModalOut(label="正常"), ModalOut(label="正常"))
+    r = compute_deterministic(
+        ModalOut(label="正常"), ModalOut(label="正常"), ModalOut(label="正常")
+    )
     assert r.score == 0
     assert r.risk == "正常"
     assert r.label == "正常"
     assert r.source == "deterministic"
 
 
-def test_compute_doc_example():
-    # doc 6.4 example: vision 低落(3)×0.5 + audio 焦虑(2)×0.4 + text 正常(0)×0.1 = 2.3
+def test_compute_canonical_example():
+    # vision 低落(3)×0.5 + audio 焦虑(2)×0.4 + text 正常(0)×0.1 = 2.3
     r = compute_deterministic(
         ModalOut(label="低落"),
         ModalOut(label="焦虑"),
@@ -67,6 +70,7 @@ def test_compute_label_picks_dominant_modality():
 
 # ---------------- _render_label ----------------
 
+
 def test_render_label_missing():
     assert _render_label(None) == "缺失"
     assert _render_label(ModalOut()) == "缺失"
@@ -82,6 +86,7 @@ def test_render_label_garbage_falls_back():
 
 
 # ---------------- fuse() ----------------
+
 
 @pytest.mark.asyncio
 async def test_fuse_default_is_deterministic():

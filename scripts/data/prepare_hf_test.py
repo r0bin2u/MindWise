@@ -1,7 +1,6 @@
 import argparse
 import json
 import random
-from collections import Counter
 from pathlib import Path
 
 from datasets import load_dataset
@@ -55,12 +54,18 @@ def main():
     with out.open("w", encoding="utf-8") as w:
         for label, items in picked.items():
             for t in items:
-                w.write(json.dumps({
-                    "instruction": INSTRUCTION,
-                    "input": t,
-                    "output": label,
-                    "source": "hf_johnson8187",
-                }, ensure_ascii=False) + "\n")
+                w.write(
+                    json.dumps(
+                        {
+                            "instruction": INSTRUCTION,
+                            "input": t,
+                            "output": label,
+                            "source": "hf_johnson8187",
+                        },
+                        ensure_ascii=False,
+                    )
+                    + "\n"
+                )
                 n += 1
 
     print(f"wrote {n} items -> {out}")

@@ -1,5 +1,3 @@
-from pathlib import Path
-
 from openpyxl import load_workbook
 
 from mcp_server.tools.excel_writer import HEADERS, append_row
@@ -42,8 +40,7 @@ def test_appends_without_duplicating_header(tmp_path):
 
 def test_honors_explicit_timestamp(tmp_path):
     target = tmp_path / "log.xlsx"
-    append_row("U1", "x", "焦虑", 1.8, "需关注",
-               timestamp="2026-04-20 21:15:22", path=target)
+    append_row("U1", "x", "焦虑", 1.8, "需关注", timestamp="2026-04-20 21:15:22", path=target)
     wb = load_workbook(target)
     assert wb.active[2][5].value == "2026-04-20 21:15:22"
 

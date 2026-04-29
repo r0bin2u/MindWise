@@ -5,7 +5,7 @@ We're not testing the downstream services themselves here (those have
 their own tests); we're testing that /chat picks the right stream
 function + the right BackgroundTask given each intent.
 """
-import pytest
+
 from fastapi.testclient import TestClient
 
 from app.main import app
@@ -20,9 +20,15 @@ def _patch_all(monkeypatch, *, intent, fused=None):
     with trackable fakes. Returns a calls dict."""
     from app.api import chat as chat_mod
 
-    calls = {"intent": None, "fuse": 0, "text_emotion": 0,
-             "stream_plain": 0, "stream_risk": 0, "rag_stream": 0,
-             "on_turn_end_args": []}
+    calls = {
+        "intent": None,
+        "fuse": 0,
+        "text_emotion": 0,
+        "stream_plain": 0,
+        "stream_risk": 0,
+        "rag_stream": 0,
+        "on_turn_end_args": [],
+    }
 
     async def fake_text_emotion(text):
         calls["text_emotion"] += 1
@@ -30,8 +36,7 @@ def _patch_all(monkeypatch, *, intent, fused=None):
 
     async def fake_fuse(**kwargs):
         calls["fuse"] += 1
-        return fused or FusionResult(score=1.2, label="焦虑", risk="需关注",
-                                     source="deterministic")
+        return fused or FusionResult(score=1.2, label="焦虑", risk="需关注", source="deterministic")
 
     async def fake_classify(text):
         calls["intent"] = intent
@@ -87,11 +92,10 @@ def test_chat_branch_picks_plain_stream_and_forwards_intent(monkeypatch):
 
 
 def test_chat_with_high_risk_fused_triggers_mcp(monkeypatch):
-    """Silent-crisis case (doc 2): user types 'hi' casually but video/
-    audio fusion flagged 高风险. intent=CHAT but dispatcher must still
-    receive risk='高风险' so the orchestrator fires excel + mail."""
-    fused = FusionResult(score=2.5, label="高风险", risk="高风险",
-                         source="deterministic")
+    """Silent-crisis case: user types 'hi' casually but video/audio fusion
+    flagged 高风险. intent=CHAT but dispatcher must still receive
+    risk='高风险' so the orchestrator fires excel + mail."""
+    fused = FusionResult(score=2.5, label="高风险", risk="高风险", source="deterministic")
     calls = _patch_all(monkeypatch, intent="CHAT", fused=fused)
     r = client.post("/chat", json=_body("今天吃什么"))
     assert r.status_code == 200
@@ -121,8 +125,7 @@ def test_risk_branch_streams_comfort_and_queues_alert(monkeypatch):
 
 
 def test_consult_branch_streams_rag_and_logs_with_fused_risk(monkeypatch):
-    fused = FusionResult(score=2.3, label="低落", risk="高风险",
-                         source="deterministic")
+    fused = FusionResult(score=2.3, label="低落", risk="高风险", source="deterministic")
     calls = _patch_all(monkeypatch, intent="CONSULT", fused=fused)
     r = client.post("/chat", json=_body("最近很焦虑"))
     assert r.status_code == 200
@@ -149,5 +152,5 @@ def test_chat_response_emits_meta_event(monkeypatch):
     body = r.text
     # SSE 'event: meta' line with JSON payload
     assert "event: meta" in body
-    assert "CHAT" in body          # intent shows up in meta payload
+    assert "CHAT" in body  # intent shows up in meta payload
     assert "session_id" in body

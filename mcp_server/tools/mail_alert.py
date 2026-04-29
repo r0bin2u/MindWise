@@ -4,6 +4,7 @@ Uses aiosmtplib for async TLS send; kept pure (takes SMTP config via
 args, falls back to settings) so tests can pass a MagicMock sender
 and not hit a real server.
 """
+
 from __future__ import annotations
 
 from datetime import datetime
@@ -45,14 +46,16 @@ def _build_message(
     msg["From"] = sender
     msg["To"] = ", ".join(recipients)
     msg["Subject"] = SUBJECT_TMPL.format(user_id=user_id)
-    msg.set_content(BODY_TMPL.format(
-        user_id=user_id,
-        content=content,
-        emotion_label=emotion_label,
-        score=score,
-        risk_level=risk_level,
-        timestamp=timestamp,
-    ))
+    msg.set_content(
+        BODY_TMPL.format(
+            user_id=user_id,
+            content=content,
+            emotion_label=emotion_label,
+            score=score,
+            risk_level=risk_level,
+            timestamp=timestamp,
+        )
+    )
     return msg
 
 

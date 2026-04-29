@@ -54,7 +54,7 @@ def parse_array(raw: str):
 def generate(client, model, prompt_tpl, total, batch=20, temperature=0.9):
     out = []
     seen = set()
-    pbar = tqdm(total=total, desc=f"gen")
+    pbar = tqdm(total=total, desc="gen")
     while len(out) < total:
         k = min(batch, total - len(out) + 5)  # tiny overshoot for dedup loss
         prompt = prompt_tpl.format(k=k)
@@ -104,20 +104,32 @@ def main():
     counts = Counter()
     with out.open("w", encoding="utf-8") as w:
         for text in anxiety:
-            w.write(json.dumps({
-                "instruction": INSTRUCTION,
-                "input": anonymize(text),
-                "output": "焦虑",
-                "source": f"synth_{args.model.split(':')[0]}",
-            }, ensure_ascii=False) + "\n")
+            w.write(
+                json.dumps(
+                    {
+                        "instruction": INSTRUCTION,
+                        "input": anonymize(text),
+                        "output": "焦虑",
+                        "source": f"synth_{args.model.split(':')[0]}",
+                    },
+                    ensure_ascii=False,
+                )
+                + "\n"
+            )
             counts["焦虑"] += 1
         for text in risk:
-            w.write(json.dumps({
-                "instruction": INSTRUCTION,
-                "input": anonymize(text),
-                "output": "高风险",
-                "source": f"synth_{args.model.split(':')[0]}",
-            }, ensure_ascii=False) + "\n")
+            w.write(
+                json.dumps(
+                    {
+                        "instruction": INSTRUCTION,
+                        "input": anonymize(text),
+                        "output": "高风险",
+                        "source": f"synth_{args.model.split(':')[0]}",
+                    },
+                    ensure_ascii=False,
+                )
+                + "\n"
+            )
             counts["高风险"] += 1
 
     print(f"wrote {sum(counts.values())} items -> {out}")

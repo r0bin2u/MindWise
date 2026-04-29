@@ -4,7 +4,7 @@ from app.services.face_emotion import _score_label, face_to_emotion
 
 
 def test_score_label_boundaries():
-    # doc 6.3: 0~2 正常 / 2~3 焦虑 / 3~4 低落 / >=4 高风险
+    # face-score → label/risk bands: 0~2 正常 / 2~3 焦虑 / 3~4 低落 / ≥4 高风险
     assert _score_label(0.0) == ("正常", "正常")
     assert _score_label(1.99) == ("正常", "正常")
     assert _score_label(2.0) == ("焦虑", "需关注")
