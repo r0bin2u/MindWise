@@ -28,6 +28,11 @@ dependencies = [
     "opencv-python>=4.9",
     "numpy>=1.26",
     "mcp>=1.0",
+    "sentence-transformers>=2.2",
+    "prometheus-client>=0.19",
+    "prometheus-fastapi-instrumentator>=7.0",
+    "langfuse>=2.0",
+    "zhconv>=1.4",
 ]
 
 [project.optional-dependencies]
@@ -52,6 +57,9 @@ target-version = "py310"
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
+# only collect tests under tests/; scripts/data/prepare_hf_test.py is a data
+# prep utility, not a test, despite its filename ending in _test.py
+testpaths = ["tests"]
 
 [build-system]
 requires = ["setuptools>=68"]
