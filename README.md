@@ -1,5 +1,7 @@
 # MindWise
 
+[![CI](https://github.com/r0bin2u/MindWise/actions/workflows/ci.yml/badge.svg)](https://github.com/r0bin2u/MindWise/actions/workflows/ci.yml)
+
 > A campus-oriented mental-health AI assistant: multimodal emotion
 > sensing, Agentic RAG, and MCP tool calls for crisis logging and
 > alerts. Fully local inference, Apache-2.0, zero API spend.
