@@ -1,9 +1,9 @@
 """Chroma retrieval with neighbor-chunk splicing.
 
-Per the design image: when chunk_i is the top hit, we also pull chunk_{i-n}
-.. chunk_{i+n} from the same source and splice them back in original order.
-This recovers the surrounding context that a 512-token chunk boundary may
-have broken, without having to retrieve at a coarser granularity.
+When chunk_i is the top hit, we also pull chunk_{i-n} .. chunk_{i+n} from
+the same source and splice them back in original order. This recovers the
+surrounding context that a 512-token chunk boundary may have broken,
+without having to retrieve at a coarser granularity.
 """
 from __future__ import annotations
 

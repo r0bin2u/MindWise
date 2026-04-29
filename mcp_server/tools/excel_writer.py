@@ -1,7 +1,8 @@
 """Excel log tool — append one consultation record per invocation.
 
-Per doc section 9.4 the sheet columns are:
+Sheet columns:
     用户ID | 对话内容 | 情绪标签 | 情绪总分 | 风险等级 | 对话时间
+    (user_id | message | emotion_label | score | risk_level | timestamp)
 
 The file is created with a header row on first use. Subsequent writes
 just append. openpyxl is the standard lib here; we reload-and-rewrite

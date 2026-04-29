@@ -1,6 +1,6 @@
 """FastMCP server exposing mindwise tools.
 
-Two tools per doc 9.2 + design images:
+Two tools:
   - excel_writer: log every non-CHAT turn
   - mail_alert:   send high-risk alert to the counselor admin
 

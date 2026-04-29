@@ -1,20 +1,21 @@
 """First-layer intent classifier + turn-end dispatcher.
 
-Per doc section 7, after multimodal fusion we ask the same fine-tuned
-Qwen to decide whether the turn is:
+After multimodal fusion we ask the same fine-tuned Qwen to decide whether
+the turn is:
 
     CHAT     → just reply, skip RAG, skip Excel, skip alert
     CONSULT  → enter Agentic RAG → Excel log → maybe alert
-    RISK     → Fast Path: immediate alert + Excel (doc section 2/7)
+    RISK     → Fast Path: immediate alert + Excel
 
 Two inference-time safety layers, in order:
-  1. explicit RISK keyword scan (doc's "极端关键词 fast path") — short-circuits
-     the LLM so an obvious distress phrase can never be misclassified as CHAT.
-  2. LLM call with the strict-output prompt from the design image.
+  1. explicit RISK keyword scan — short-circuits the LLM so an obvious
+     distress phrase can never be misclassified as CHAT.
+  2. LLM call with a strict-output prompt.
 
-Keyword matching here is inference-time only. Doc-labeling pipelines must
-NOT reuse this regex to auto-tag training data — we already learned that
-lesson the hard way (see TODO_stage1_rework.md).
+Keyword matching here is inference-time only. The training-side weak
+labeling pipeline must NOT reuse this regex to auto-tag training data,
+or the model will learn to lean on the regex's coverage instead of the
+actual semantics — leaking the inference-time safety net into training.
 """
 import re
 from typing import Literal
@@ -38,8 +39,8 @@ RISK_KEYWORDS = re.compile(
 )
 
 
-# Verbatim from the design image — do not edit without re-evaluating the
-# classifier on the test set, prompt changes drift accuracy.
+# Locked prompt — do not edit without re-evaluating the classifier on the
+# test set; prompt drift silently degrades accuracy.
 INTENT_PROMPT = """你是一个用户意图分类器，只做意图识别，不回答问题。
 用户输入内容：{user_input}
 
@@ -95,7 +96,7 @@ async def classify_intent(text: str) -> Intent:
 
     t = text.strip()
 
-    # pre-LLM fast path — doc section 7
+    # pre-LLM fast path
     if RISK_KEYWORDS.search(t):
         return "RISK"
 
@@ -109,7 +110,7 @@ async def classify_intent(text: str) -> Intent:
 
 
 # ---------------------------------------------------------------------------
-# turn-end dispatcher — MCP tool calls per doc 9.3 trigger matrix
+# turn-end dispatcher — MCP tool-call trigger matrix
 # ---------------------------------------------------------------------------
 #
 # intent=CHAT                         → no excel, no mail
@@ -146,18 +147,18 @@ async def on_turn_end(
     """
     actions = {"excel": False, "mail": False}
 
-    # "Silent crisis" case (doc 2 两层风险判断互补): user types something
-    # casual like "今天天气不错" but face + voice score 高风险 via the
+    # "Silent crisis" case: user types something casual like "今天天气不错"
+    # ("nice weather today") but face + voice score 高风险 via the
     # multimodal fusion upstream. Text-only intent says CHAT, but we must
-    # NOT skip excel + mail in that case — that's exactly the case where
-    # the two-layer design is supposed to catch them.
-    # So CHAT skips only when the fused risk band is ALSO benign.
+    # NOT skip excel + mail in that case — that's exactly what the
+    # two-layer (explicit-text + implicit-multimodal) design is meant
+    # to catch. So CHAT skips only when the fused risk band is ALSO benign.
     if intent == "CHAT" and risk != "高风险":
         return actions
 
     # RISK intent is an explicit distress signal (user said something like
-    # "我想死") — force-escalate regardless of what the fused risk band
-    # claims. Belt-and-suspenders: doc 16 says the caller should already
+    # "我想死", "I want to die") — force-escalate regardless of what the
+    # fused risk band claims. Belt-and-suspenders: the caller should already
     # pass risk="高风险" in this case, but don't trust callers silently.
     if intent == "RISK":
         risk = "高风险"

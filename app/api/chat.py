@@ -115,8 +115,8 @@ async def chat(req: ChatRequest, bg: BackgroundTasks):
     # Schedule the post-turn dispatcher UNCONDITIONALLY. on_turn_end itself
     # decides what to actually do based on intent + fused.risk:
     #   - CHAT + risk=正常/需关注 → no-op
-    #   - CHAT + risk=高风险        → excel + mail (silent-crisis case,
-    #                                  doc 2 两层风险判断互补)
+    #   - CHAT + risk=高风险        → excel + mail (silent-crisis case:
+    #                                  benign text but multimodal score is high)
     #   - CONSULT + risk=正常/需关注 → excel only
     #   - CONSULT + risk=高风险      → excel + mail
     #   - RISK (any risk)            → excel + mail (force-escalated inside)

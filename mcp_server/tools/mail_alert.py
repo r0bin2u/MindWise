@@ -1,4 +1,4 @@
-"""High-risk alert email — body template matches doc section 9.5.
+"""High-risk alert email.
 
 Uses aiosmtplib for async TLS send; kept pure (takes SMTP config via
 args, falls back to settings) so tests can pass a MagicMock sender

@@ -44,8 +44,8 @@ async def _call_model(text: str) -> str:
 async def text_emotion(text: str) -> str:
     """Classify user text into one of {正常, 焦虑, 低落, 高风险}.
 
-    Returns '正常' on empty input or if every retry fails — this is the
-    conservative fallback per doc 13.2 (never raise from a perception module).
+    Returns '正常' on empty input or if every retry fails — perception
+    modules must never raise; surface failures as benign labels instead.
     """
     if not text or not text.strip():
         return "正常"

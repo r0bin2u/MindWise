@@ -1,10 +1,8 @@
 """Agentic RAG via LangGraph StateGraph.
 
-Design reference: doc sections 8 (Agentic RAG) + 14.2 (LangGraph usage),
-and the design image showing the {think, action, query} JSON contract.
-Field name is 'think' (per the image), not 'thought' — the md doc's 8.2
-sample code said 'thought' but 8.3 and the image both say 'think'; image
-wins because it's the more recent design source.
+The agent emits {think, action, query} JSON each turn — `think` is the
+reasoning trace, `action` is RETRIEVE or ANSWER, `query` is the search
+key when retrieving.
 
 Graph shape:
     think ── route ──► retrieve ──► think
@@ -17,8 +15,8 @@ Loop invariants:
   - answer generates the final user-facing reply with accumulated context
   - max_steps=4 is a hard cap on retrieve cycles; prevents runaway loops
 
-Why LangGraph here: doc 14.2. A while-loop would hide the state transitions
-in local variables; LangGraph makes the graph explicit and easy to extend
+Why LangGraph here: a while-loop would hide the state transitions in
+local variables; LangGraph makes the graph explicit and easy to extend
 (add a new node + edge = one-line change) and trace.
 """
 from __future__ import annotations
@@ -43,8 +41,8 @@ class AgentStep(BaseModel):
     query: str = ""
 
 
-# Verbatim prompt from the design image. Qwen must reply with strict JSON;
-# we enforce with `format="json"` and pydantic-validate.
+# Locked prompt — Qwen must reply with strict JSON; we enforce via
+# `format="json"` and pydantic-validate the output.
 AGENT_PROMPT = """你是智心AI心理咨询助手，必须严格按照以下步骤执行多步推理：
 
 步骤1：理解用户问题与情绪状态

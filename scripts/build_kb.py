@@ -1,17 +1,14 @@
 """Build the Chroma knowledge base from markdown / text docs.
 
-Per doc 8.4 and the design image:
   - RecursiveCharacterTextSplitter with chunk_size=512 token, chunk_overlap=64
-  - Separators prefer paragraph / sentence ends (so chunks don't break mid-sentence)
-  - Embed with BAAI/bge-small-zh-v1.5 (local, free, Chinese-optimized; doc 8.4
-    explicitly lists bge as the Chinese alternative to text-embedding-3-small)
+  - Separators prefer paragraph / sentence ends so chunks don't break mid-sentence
+  - Embed with BAAI/bge-small-zh-v1.5 (local, free, Chinese-optimized;
+    bge is the Chinese alternative to text-embedding-3-small)
   - Store metadata (source, chunk_idx, total_chunks) so retrieval can splice
-    neighboring chunks for extra context (image 3: chunk3 hit → return
-    chunk2 + chunk3 + chunk4)
+    neighboring chunks for extra context — chunk3 hit returns chunk2+3+4
 
-Only LangChain component we touch is the splitter; everything else is
-straight chromadb / sentence-transformers. Keeping the LangChain surface
-small is a project-wide rule (doc 14).
+Only LangChain component used here is the splitter; everything else is
+straight chromadb / sentence-transformers.
 """
 import argparse
 import hashlib

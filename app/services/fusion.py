@@ -1,10 +1,10 @@
 """Multimodal emotion fusion engine.
 
-Per doc section 6.4 the design intent is "let Qwen2.5 do the weighted sum
-so the rule stays in natural language." We implemented both paths and
-empirically found that 7B-class models are **unreliable at multi-step
-arithmetic** (e.g. it turned 2×0.1 into 0.8 and (3×0.5+2×0.4+2×0.1)=2.5
-into 2.3, crossing the 高风险 threshold the wrong way).
+Original design intent: "let Qwen2.5 do the weighted sum so the rule stays
+in natural language." We implemented both paths and empirically found that
+7B-class models are **unreliable at multi-step arithmetic** (e.g. it turned
+2×0.1 into 0.8 and (3×0.5+2×0.4+2×0.1)=2.5 into 2.3, crossing the 高风险
+threshold the wrong way).
 
 Engineering decision: default to **deterministic Python compute**. Keep the
 LLM path behind an opt-in flag with a cross-check — if the LLM result
@@ -12,7 +12,7 @@ diverges from deterministic by more than 0.3 on score, fall back to the
 deterministic result. This preserves the "LLM in the loop" narrative for
 future label disambiguation while guaranteeing correctness in production.
 
-Formula (doc 6.4):
+Formula:
     final = 0.5 * vision + 0.4 * audio + 0.1 * text
     score mapping: 正常=0, 焦虑=2, 低落=3, 高风险=4
 
@@ -40,7 +40,8 @@ RISKS = {"正常", "需关注", "高风险"}
 
 SCORE_MAP = {"正常": 0, "焦虑": 2, "低落": 3, "高风险": 4}
 
-# doc 6.4 weights
+# fusion weights — vision dominates because facial cues are hardest to fake;
+# text is lowest because typed messages are the easiest to consciously mask
 W_VISION, W_AUDIO, W_TEXT = 0.5, 0.4, 0.1
 
 # max allowed divergence between LLM score and deterministic score before we
