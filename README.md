@@ -33,10 +33,13 @@ calls.
     - `"Hi, how are you?"` → CHAT path
     - `"I've been so anxious about exams"` → CONSULT path
     - `"I want to disappear"` → RISK path + crisis dialog
-- **Reply language note:** the AI replies are in Chinese because
-  the backend is fine-tuned on a Chinese psychology corpus. The UI
-  shell itself is bilingual — use the language toggle in the
-  header to switch labels between EN and ZH.
+- **Reply language note:** in mock mode the public demo detects
+  the input language by CJK ratio and replies in kind (EN input →
+  EN reply, ZH input → ZH reply). The real Qwen backend is
+  fine-tuned on a Chinese psychology corpus and replies only in
+  Chinese; the EN reply pool is a mock-only convenience for
+  english-speaking reviewers and is clearly marked as such in
+  [`web/src/lib/mockChat.ts`](web/src/lib/mockChat.ts).
 - **Run locally for the real Qwen backend:** see
   [Quick Start](#quick-start) below.
 - **Force mock mode locally:** append `?mock=1` to the URL.
