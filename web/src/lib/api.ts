@@ -1,5 +1,15 @@
 import type { ChatMeta, Emotion, Intent, Risk } from '@/types/chat';
 
+export const API_BASE = (import.meta.env.VITE_API_BASE ?? '').replace(/\/$/, '');
+
+export function isMockMode(): boolean {
+  if (typeof window === 'undefined') return false;
+  const q = new URLSearchParams(window.location.search).get('mock');
+  if (q === '1') return true;
+  if (q === '0') return false;
+  return import.meta.env.PROD && !API_BASE;
+}
+
 interface WireChatMeta {
   session_id: string;
   intent: Intent;

@@ -37,6 +37,10 @@ const en = {
   crisisBody:
     'Reaching out takes courage. If you are struggling right now, please connect with a real person who can be present with you.',
   crisisAck: 'I understand',
+
+  demoMode: 'Demo mode',
+  demoModeTooltip:
+    'Replies are scripted for public demo. To use the real backend, run uvicorn locally or set VITE_API_BASE.',
 } as const;
 
 type Key = keyof typeof en;
@@ -74,6 +78,10 @@ const zh: Record<Key, string> = {
   crisisTitle: '我们一直在。',
   crisisBody: '你愿意说出来已经需要很多勇气。如果当下感觉撑不住，请联系一个真实的人来陪伴你。',
   crisisAck: '我会去联系',
+
+  demoMode: '演示模式',
+  demoModeTooltip:
+    '当前回复是脚本化的，用于公开演示。要连真实后端，请本地运行 uvicorn 或设置 VITE_API_BASE。',
 };
 
 const dict = { en, zh } as const;
