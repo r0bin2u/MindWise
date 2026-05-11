@@ -16,6 +16,10 @@ interface ReplyTemplate {
   reply: string;
 }
 
+// All fusedScore values here mirror the real text-only backend path:
+// score = text_score × 0.1, where text_score ∈ {正常:0, 焦虑:2, 低落:3, 高风险:4}.
+// In text-only mode the maximum reachable score is 0.4, so risk stays "正常";
+// crisis surfaces via intent === 'RISK', not via the risk band.
 const REPLIES: Record<Category, ReplyTemplate[]> = {
   RISK: [
     {
@@ -32,31 +36,31 @@ const REPLIES: Record<Category, ReplyTemplate[]> = {
       risk: '正常',
       fusedScore: 0.4,
       reply:
-        '我听到了，撑到现在已经不容易了。请先做一件事：把这个号码拨出去——北京心理危机研究与干预中心 010-82951332，他们 24 小时有人接听。你不需要解释那么多，只要让对方陪你说会儿话。',
+        '我听到了，撑到现在已经不容易了。请先做一件事：把这个号码拨出去 —— 北京心理危机研究与干预中心 010-82951332，他们 24 小时有人接听。你不需要解释那么多，只要让对方陪你说会儿话。',
     },
   ],
   CONSULT: [
     {
       intent: 'CONSULT',
       emotionLabel: '焦虑',
-      risk: '需关注',
-      fusedScore: 1.3,
+      risk: '正常',
+      fusedScore: 0.2,
       reply:
-        '听起来你最近背的东西很重。睡不好、心慌、白天又没法停下来——这种状态身体迟早会发出信号。能告诉我，最近一次让你觉得"撑不住"的时刻，是在做什么吗？',
+        '听起来你最近背的东西很重。睡不好、心慌、白天又没法停下来 —— 这种状态身体迟早会发出信号。能告诉我，最近一次让你觉得"撑不住"的时刻，是在做什么吗？',
     },
     {
       intent: 'CONSULT',
       emotionLabel: '焦虑',
-      risk: '需关注',
-      fusedScore: 1.3,
+      risk: '正常',
+      fusedScore: 0.2,
       reply:
-        '压力这件事不是非要"扛过去"才算赢。我们可以一起拆一拆——是哪一块在消耗你最多？是 deadline 本身、是对结果的担心、还是没有人能商量？',
+        '压力这件事不是非要"扛过去"才算赢。我们可以一起拆一拆 —— 是哪一块在消耗你最多？是 deadline 本身、是对结果的担心、还是没有人能商量？',
     },
     {
       intent: 'CONSULT',
       emotionLabel: '低落',
-      risk: '需关注',
-      fusedScore: 1.5,
+      risk: '正常',
+      fusedScore: 0.3,
       reply:
         '谢谢你说出来。这种低落感像在水底走路，每一步都需要更多力气。你愿意告诉我，是从什么时候开始有这种感觉的吗？',
     },
@@ -66,21 +70,21 @@ const REPLIES: Record<Category, ReplyTemplate[]> = {
       intent: 'CHAT',
       emotionLabel: '正常',
       risk: '正常',
-      fusedScore: 0.2,
+      fusedScore: 0.0,
       reply: '挺好的呀，今天怎么样？有什么想和我聊的吗？',
     },
     {
       intent: 'CHAT',
       emotionLabel: '正常',
       risk: '正常',
-      fusedScore: 0.1,
+      fusedScore: 0.0,
       reply: '听到啦，欢迎你来。是发生了什么事，还是只是想找人随便聊聊？两种都可以。',
     },
     {
       intent: 'CHAT',
       emotionLabel: '正常',
       risk: '正常',
-      fusedScore: 0.2,
+      fusedScore: 0.0,
       reply: '好啊，慢慢说。我在听。',
     },
   ],
