@@ -6,14 +6,31 @@ export type Lang = 'en' | 'zh';
 const en = {
   appName: 'MindWise',
   appTagline: 'Multimodal mental-health AI assistant',
-  scaffoldReady: 'Frontend scaffold is ready. Tailwind v4 + shadcn/ui wired end-to-end.',
-  testButton: 'Test button',
+
+  newSession: 'New session',
+  inputPlaceholder: 'Type your message...',
+  attachAudio: 'Attach audio',
+  attachVideo: 'Attach video',
+  emptyState: 'Say hi to start the conversation.',
+  emptyMeta: 'No conversation yet.',
+
+  intent: 'Intent',
+  risk: 'Risk',
+  score: 'Score',
+  emotion: 'Emotion',
+
   riskNormal: 'Normal',
   riskAttention: 'Needs attention',
   riskHigh: 'High risk',
+
   intentChat: 'Chat',
   intentConsult: 'Consult',
-  intentRisk: 'Risk',
+  intentRisk: 'Crisis',
+
+  emotionNormal: 'Normal',
+  emotionAnxiety: 'Anxiety',
+  emotionLow: 'Low mood',
+  emotionHighRisk: 'High risk',
 } as const;
 
 type Key = keyof typeof en;
@@ -21,14 +38,31 @@ type Key = keyof typeof en;
 const zh: Record<Key, string> = {
   appName: 'MindWise',
   appTagline: '多模态心理健康 AI 助手',
-  scaffoldReady: '前端骨架已就绪。Tailwind v4 + shadcn/ui 全链路通。',
-  testButton: '测试按钮',
+
+  newSession: '新建会话',
+  inputPlaceholder: '输入消息...',
+  attachAudio: '上传语音',
+  attachVideo: '上传视频',
+  emptyState: '和我说说你今天的感受。',
+  emptyMeta: '还没有对话。',
+
+  intent: '意图',
+  risk: '风险',
+  score: '得分',
+  emotion: '情绪',
+
   riskNormal: '正常',
   riskAttention: '需关注',
   riskHigh: '高风险',
+
   intentChat: '闲聊',
   intentConsult: '咨询',
   intentRisk: '危机',
+
+  emotionNormal: '正常',
+  emotionAnxiety: '焦虑',
+  emotionLow: '低落',
+  emotionHighRisk: '高风险',
 };
 
 const dict = { en, zh } as const;
