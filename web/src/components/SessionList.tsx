@@ -36,7 +36,7 @@ export function SessionList({ sessions, currentId, onSelect, onNew }: Props) {
                     : 'hover:bg-accent/50',
                 )}
               >
-                {s.title}
+                {s.title || t('newSession')}
               </button>
             </li>
           ))}

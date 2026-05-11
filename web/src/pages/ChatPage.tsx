@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { AppHeader } from '@/components/AppHeader';
 import { ChatInput } from '@/components/ChatInput';
 import { ChatMessage } from '@/components/ChatMessage';
@@ -7,22 +6,23 @@ import { SessionList } from '@/components/SessionList';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useChat } from '@/hooks/useChat';
 import { useT } from '@/lib/i18n';
-import { MOCK_SESSIONS } from '@/lib/mock';
-import type { ChatMessage as MessageT, ChatSession } from '@/types/chat';
+import { useChatStore, useCurrentSession, useSessions } from '@/store/chat';
+import type { ChatMessage as MessageT } from '@/types/chat';
 
 const DEMO_USER_ID = 'demo-user';
 
 export function ChatPage() {
   const t = useT();
-  const [sessions, setSessions] = useState<ChatSession[]>(MOCK_SESSIONS);
-  const [currentId, setCurrentId] = useState(sessions[0]?.id ?? '');
-  const current = sessions.find((s) => s.id === currentId);
+  const sessions = useSessions();
+  const current = useCurrentSession();
+  const newSession = useChatStore((s) => s.newSession);
+  const switchSession = useChatStore((s) => s.switchSession);
+  const addMessages = useChatStore((s) => s.addMessages);
+  const appendToMessage = useChatStore((s) => s.appendToMessage);
+  const setMessageContent = useChatStore((s) => s.setMessageContent);
+  const setLastMeta = useChatStore((s) => s.setLastMeta);
 
   const { send, streaming } = useChat();
-
-  function patchCurrent(updater: (s: ChatSession) => ChatSession) {
-    setSessions((prev) => prev.map((s) => (s.id === currentId ? updater(s) : s)));
-  }
 
   function handleSend(text: string) {
     if (!current || streaming) return;
@@ -33,52 +33,31 @@ export function ChatPage() {
       content: text,
       timestamp: Date.now(),
     };
-    const asstId = crypto.randomUUID();
     const asstMsg: MessageT = {
-      id: asstId,
+      id: crypto.randomUUID(),
       role: 'assistant',
       content: '',
       timestamp: Date.now(),
     };
-
-    patchCurrent((s) => ({ ...s, messages: [...s.messages, userMsg, asstMsg] }));
+    const sessionId = current.id;
+    addMessages(sessionId, [userMsg, asstMsg]);
 
     send(
-      { userId: DEMO_USER_ID, message: text, sessionId: current.id },
+      { userId: DEMO_USER_ID, message: text, sessionId },
       {
-        onMeta: (meta) => patchCurrent((s) => ({ ...s, lastMeta: meta })),
-        onToken: (tok) =>
-          patchCurrent((s) => ({
-            ...s,
-            messages: s.messages.map((m) =>
-              m.id === asstId ? { ...m, content: m.content + tok } : m,
-            ),
-          })),
+        onMeta: (meta) => setLastMeta(sessionId, meta),
+        onToken: (tok) => appendToMessage(sessionId, asstMsg.id, tok),
         onError: (err) => {
           const reason = err instanceof Error ? err.message : String(err);
-          patchCurrent((s) => ({
-            ...s,
-            messages: s.messages.map((m) =>
-              m.id === asstId
-                ? { ...m, content: m.content || `⚠️ ${reason}` }
-                : m,
-            ),
-          }));
+          const peek = useChatStore
+            .getState()
+            .sessions[sessionId]?.messages.find((m) => m.id === asstMsg.id);
+          if (peek && !peek.content) {
+            setMessageContent(sessionId, asstMsg.id, `⚠️ ${reason}`);
+          }
         },
       },
     );
-  }
-
-  function handleNew() {
-    const id = crypto.randomUUID();
-    const fresh: ChatSession = {
-      id,
-      title: t('newSession'),
-      messages: [],
-      createdAt: Date.now(),
-    };
-    setSessions((prev) => [fresh, ...prev]);
-    setCurrentId(id);
   }
 
   return (
@@ -87,9 +66,9 @@ export function ChatPage() {
       <div className="flex-1 flex overflow-hidden">
         <SessionList
           sessions={sessions}
-          currentId={currentId}
-          onSelect={setCurrentId}
-          onNew={handleNew}
+          currentId={current?.id ?? ''}
+          onSelect={switchSession}
+          onNew={newSession}
         />
         <main className="flex-1 flex flex-col min-w-0">
           <MetaBar meta={current?.lastMeta ?? null} />
