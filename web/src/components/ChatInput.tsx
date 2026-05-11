@@ -1,15 +1,17 @@
 import { useState, type KeyboardEvent } from 'react';
-import { Paperclip, Send } from 'lucide-react';
+import { Paperclip, Send, Square } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { useT } from '@/lib/i18n';
 
 interface Props {
   onSend: (text: string) => void;
+  onCancel?: () => void;
   disabled?: boolean;
+  streaming?: boolean;
 }
 
-export function ChatInput({ onSend, disabled }: Props) {
+export function ChatInput({ onSend, onCancel, disabled, streaming }: Props) {
   const t = useT();
   const [value, setValue] = useState('');
 
@@ -42,9 +44,15 @@ export function ChatInput({ onSend, disabled }: Props) {
           className="min-h-10 resize-none"
           disabled={disabled}
         />
-        <Button onClick={submit} disabled={disabled || !value.trim()} size="icon">
-          <Send className="size-4" />
-        </Button>
+        {streaming && onCancel ? (
+          <Button onClick={onCancel} variant="outline" size="icon" title={t('stop')}>
+            <Square className="size-3.5 fill-current" />
+          </Button>
+        ) : (
+          <Button onClick={submit} disabled={disabled || !value.trim()} size="icon">
+            <Send className="size-4" />
+          </Button>
+        )}
       </div>
     </div>
   );

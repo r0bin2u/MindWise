@@ -31,6 +31,12 @@ const en = {
   emotionAnxiety: 'Anxiety',
   emotionLow: 'Low mood',
   emotionHighRisk: 'High risk',
+
+  stop: 'Stop',
+  crisisTitle: 'We are here with you.',
+  crisisBody:
+    'Reaching out takes courage. If you are struggling right now, please connect with a real person who can be present with you.',
+  crisisAck: 'I understand',
 } as const;
 
 type Key = keyof typeof en;
@@ -63,6 +69,11 @@ const zh: Record<Key, string> = {
   emotionAnxiety: '焦虑',
   emotionLow: '低落',
   emotionHighRisk: '高风险',
+
+  stop: '停止',
+  crisisTitle: '我们一直在。',
+  crisisBody: '你愿意说出来已经需要很多勇气。如果当下感觉撑不住，请联系一个真实的人来陪伴你。',
+  crisisAck: '我会去联系',
 };
 
 const dict = { en, zh } as const;

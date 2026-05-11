@@ -11,6 +11,7 @@ interface ChatState {
   sessions: Record<string, ChatSession>;
   order: string[];
   currentId: string | null;
+  seenCrisis: Record<string, boolean>;
 
   newSession: () => string;
   switchSession: (id: string) => void;
@@ -18,16 +19,20 @@ interface ChatState {
   appendToMessage: (sessionId: string, messageId: string, text: string) => void;
   setMessageContent: (sessionId: string, messageId: string, content: string) => void;
   setLastMeta: (sessionId: string, meta: ChatMeta) => void;
+  markCrisisSeen: (sessionId: string) => void;
 }
 
-function seedFromMocks(): Pick<ChatState, 'sessions' | 'order' | 'currentId'> {
+function seedFromMocks(): Pick<
+  ChatState,
+  'sessions' | 'order' | 'currentId' | 'seenCrisis'
+> {
   const sessions: Record<string, ChatSession> = {};
   const order: string[] = [];
   for (const s of MOCK_SESSIONS) {
     sessions[s.id] = s;
     order.push(s.id);
   }
-  return { sessions, order, currentId: order[0] ?? null };
+  return { sessions, order, currentId: order[0] ?? null, seenCrisis: {} };
 }
 
 export const useChatStore = create<ChatState>()(
@@ -110,6 +115,11 @@ export const useChatStore = create<ChatState>()(
             },
           };
         }),
+
+      markCrisisSeen: (sessionId) =>
+        set((state) => ({
+          seenCrisis: { ...state.seenCrisis, [sessionId]: true },
+        })),
     }),
     {
       name: STORAGE_KEY,
@@ -119,6 +129,7 @@ export const useChatStore = create<ChatState>()(
         sessions: state.sessions,
         order: state.order,
         currentId: state.currentId,
+        seenCrisis: state.seenCrisis,
       }),
     },
   ),

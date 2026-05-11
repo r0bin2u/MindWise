@@ -1,6 +1,8 @@
+import { useEffect, useRef, useState } from 'react';
 import { AppHeader } from '@/components/AppHeader';
 import { ChatInput } from '@/components/ChatInput';
 import { ChatMessage } from '@/components/ChatMessage';
+import { CrisisDialog } from '@/components/CrisisDialog';
 import { MetaBar } from '@/components/MetaBar';
 import { SessionList } from '@/components/SessionList';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -21,8 +23,19 @@ export function ChatPage() {
   const appendToMessage = useChatStore((s) => s.appendToMessage);
   const setMessageContent = useChatStore((s) => s.setMessageContent);
   const setLastMeta = useChatStore((s) => s.setLastMeta);
+  const markCrisisSeen = useChatStore((s) => s.markCrisisSeen);
 
-  const { send, streaming } = useChat();
+  const { send, cancel, streaming } = useChat();
+  const [crisisOpen, setCrisisOpen] = useState(false);
+
+  const messages = current?.messages ?? [];
+  const lastIdx = messages.length - 1;
+  const lastMsg = lastIdx >= 0 ? messages[lastIdx] : null;
+
+  const endRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    endRef.current?.scrollIntoView({ block: 'end' });
+  }, [lastMsg?.id, lastMsg?.content]);
 
   function handleSend(text: string) {
     if (!current || streaming) return;
@@ -45,7 +58,14 @@ export function ChatPage() {
     send(
       { userId: DEMO_USER_ID, message: text, sessionId },
       {
-        onMeta: (meta) => setLastMeta(sessionId, meta),
+        onMeta: (meta) => {
+          setLastMeta(sessionId, meta);
+          const isCrisis = meta.intent === 'RISK' || meta.risk === '高风险';
+          if (isCrisis && !useChatStore.getState().seenCrisis[sessionId]) {
+            markCrisisSeen(sessionId);
+            setCrisisOpen(true);
+          }
+        },
         onToken: (tok) => appendToMessage(sessionId, asstMsg.id, tok),
         onError: (err) => {
           const reason = err instanceof Error ? err.message : String(err);
@@ -74,18 +94,31 @@ export function ChatPage() {
           <MetaBar meta={current?.lastMeta ?? null} />
           <ScrollArea className="flex-1">
             <div className="max-w-3xl mx-auto p-6 space-y-4">
-              {!current || current.messages.length === 0 ? (
+              {messages.length === 0 ? (
                 <div className="text-center text-muted-foreground py-12 text-sm">
                   {t('emptyState')}
                 </div>
               ) : (
-                current.messages.map((m) => <ChatMessage key={m.id} message={m} />)
+                messages.map((m, i) => (
+                  <ChatMessage
+                    key={m.id}
+                    message={m}
+                    streaming={streaming && i === lastIdx && m.role === 'assistant'}
+                  />
+                ))
               )}
+              <div ref={endRef} />
             </div>
           </ScrollArea>
-          <ChatInput onSend={handleSend} disabled={streaming} />
+          <ChatInput
+            onSend={handleSend}
+            onCancel={cancel}
+            disabled={streaming}
+            streaming={streaming}
+          />
         </main>
       </div>
+      <CrisisDialog open={crisisOpen} onClose={() => setCrisisOpen(false)} />
     </div>
   );
 }
