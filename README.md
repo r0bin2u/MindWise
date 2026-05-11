@@ -1,6 +1,8 @@
 # MindWise
 
 [![CI](https://github.com/r0bin2u/MindWise/actions/workflows/ci.yml/badge.svg)](https://github.com/r0bin2u/MindWise/actions/workflows/ci.yml)
+[![Live demo](https://img.shields.io/badge/live%20demo-mind--wise.vercel.app-success)](https://mind-wise.vercel.app/)
+[![Vercel](https://img.shields.io/badge/vercel-deployed-black?logo=vercel)](https://mind-wise.vercel.app/)
 
 > A campus-oriented mental-health AI assistant: multimodal emotion
 > sensing, Agentic RAG, and MCP tool calls for crisis logging and
@@ -17,6 +19,24 @@ calls.
 > **Status:** personal portfolio project. The README focuses on
 > engineering judgement (the *why* behind each decision), not feature
 > surface area — for setup beyond `docker compose up` see the source.
+
+---
+
+## Try it
+
+- **Live demo:** <https://mind-wise.vercel.app/> — the public build
+  has no backend attached, so it auto-falls back to **mock mode**:
+  scripted SSE streams that mirror the real fusion engine's
+  text-only output (`fused_score ≤ 0.4`, `risk_band = 正常`),
+  with the crisis dialog firing on `intent === 'RISK'`. Try:
+    - `"今天天气真好"` → CHAT path
+    - `"最近压力很大"` → CONSULT path
+    - `"我撑不下去了"` → RISK path + crisis dialog
+- **Run locally for the real Qwen backend:** see
+  [Quick Start](#quick-start) below.
+- **Force mock mode locally:** append `?mock=1` to the URL.
+- **Force real backend on the public URL** (requires the backend
+  to be reachable from the deployed origin): append `?mock=0`.
 
 ---
 
