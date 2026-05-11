@@ -27,11 +27,16 @@ calls.
 - **Live demo:** <https://mind-wise.vercel.app/> — the public build
   has no backend attached, so it auto-falls back to **mock mode**:
   scripted SSE streams that mirror the real fusion engine's
-  text-only output (`fused_score ≤ 0.4`, `risk_band = 正常`),
-  with the crisis dialog firing on `intent === 'RISK'`. Try:
-    - `"今天天气真好"` → CHAT path
-    - `"最近压力很大"` → CONSULT path
-    - `"我撑不下去了"` → RISK path + crisis dialog
+  text-only output (`fused_score ≤ 0.4`, `risk_band` stays in the
+  Normal band), with the crisis dialog firing on
+  `intent === 'RISK'`. Try:
+    - `"Hi, how are you?"` → CHAT path
+    - `"I've been so anxious about exams"` → CONSULT path
+    - `"I want to disappear"` → RISK path + crisis dialog
+- **Reply language note:** the AI replies are in Chinese because
+  the backend is fine-tuned on a Chinese psychology corpus. The UI
+  shell itself is bilingual — use the language toggle in the
+  header to switch labels between EN and ZH.
 - **Run locally for the real Qwen backend:** see
   [Quick Start](#quick-start) below.
 - **Force mock mode locally:** append `?mock=1` to the URL.

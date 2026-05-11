@@ -90,8 +90,10 @@ const REPLIES: Record<Category, ReplyTemplate[]> = {
   ],
 };
 
-const RISK_PATTERNS = /想消失|想自杀|撑不下去|不想活|活不下去|self.?harm|suicide|kill myself/i;
-const CONSULT_PATTERNS = /焦虑|压力|睡不着|压抑|难过|低落|抑郁|stress|anxiety|depressed|sad|exhausted|burned out/i;
+const RISK_PATTERNS =
+  /想消失|想自杀|撑不下去|不想活|活不下去|self.?harm|suicide|suicidal|kill myself|want to disappear|can'?t go on|end it all/i;
+const CONSULT_PATTERNS =
+  /焦虑|压力|睡不着|压抑|难过|低落|抑郁|stress|stressed|anxiety|anxious|depress(?:ed|ion)|sad(?!\w)|exhausted|burn(?:ed|t) out|overwhelmed/i;
 
 function categorize(text: string): Category {
   if (RISK_PATTERNS.test(text)) return 'RISK';
