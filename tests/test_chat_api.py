@@ -79,7 +79,7 @@ def test_chat_branch_picks_plain_stream_and_forwards_intent(monkeypatch):
     At the chat.py layer we just need to verify the right stream fired
     and the dispatcher got the correct intent."""
     calls = _patch_all(monkeypatch, intent="CHAT")
-    r = client.post("/chat", json=_body())
+    r = client.post("/v1/chat", json=_body())
     assert r.status_code == 200
     body = r.text
     assert "hi" in body
@@ -97,7 +97,7 @@ def test_chat_with_high_risk_fused_triggers_mcp(monkeypatch):
     risk='高风险' so the orchestrator fires excel + mail."""
     fused = FusionResult(score=2.5, label="高风险", risk="高风险", source="deterministic")
     calls = _patch_all(monkeypatch, intent="CHAT", fused=fused)
-    r = client.post("/chat", json=_body("今天吃什么"))
+    r = client.post("/v1/chat", json=_body("今天吃什么"))
     assert r.status_code == 200
     # still streams the plain chat reply to the user (don't alarm them)
     assert calls["stream_plain"] == 1
@@ -110,7 +110,7 @@ def test_chat_with_high_risk_fused_triggers_mcp(monkeypatch):
 
 def test_risk_branch_streams_comfort_and_queues_alert(monkeypatch):
     calls = _patch_all(monkeypatch, intent="RISK")
-    r = client.post("/chat", json=_body("我不想活了"))
+    r = client.post("/v1/chat", json=_body("我不想活了"))
     assert r.status_code == 200
     body = r.text
     assert "crisis" in body
@@ -127,7 +127,7 @@ def test_risk_branch_streams_comfort_and_queues_alert(monkeypatch):
 def test_consult_branch_streams_rag_and_logs_with_fused_risk(monkeypatch):
     fused = FusionResult(score=2.3, label="低落", risk="高风险", source="deterministic")
     calls = _patch_all(monkeypatch, intent="CONSULT", fused=fused)
-    r = client.post("/chat", json=_body("最近很焦虑"))
+    r = client.post("/v1/chat", json=_body("最近很焦虑"))
     assert r.status_code == 200
     body = r.text
     # both RAG tokens should be in the SSE body
@@ -147,7 +147,7 @@ def test_consult_branch_streams_rag_and_logs_with_fused_risk(monkeypatch):
 
 def test_chat_response_emits_meta_event(monkeypatch):
     _patch_all(monkeypatch, intent="CHAT")
-    r = client.post("/chat", json=_body())
+    r = client.post("/v1/chat", json=_body())
     assert r.status_code == 200
     body = r.text
     # SSE 'event: meta' line with JSON payload
