@@ -20,61 +20,173 @@ calls.
 
 ---
 
+## Highlights
+
+- **4-label emotion classifier** fine-tuned (LoRA) on a curated
+  Chinese psychology corpus (open-source PsychQA + Mistral-Large
+  synthetic data). Target: high-risk recall ≥ 95% with macro F1
+  on a held-out split.
+- **Deterministic multimodal fusion** (`vision 0.5 / audio 0.4 /
+  text 0.1`) computed in pure Python, with an optional LLM
+  cross-check that falls back to the deterministic answer when
+  the two disagree by more than ±0.3.
+- **Two-signal crisis dispatch** — Layer-1 intent catches explicit
+  self-harm language, the multimodal fusion engine catches silent
+  crises ("I'm fine" + panicked face / shaky voice). The two
+  signals combine in a 5-row dispatch matrix in the MCP routing
+  layer.
+- **End-to-end SSE streaming** from FastAPI to a React 19 +
+  TypeScript + Tailwind v4 frontend, with type-safe `i18n` (EN/ZH)
+  and a `?mock=1` demo mode that runs without the backend.
+- **MCP-orchestrated side effects** — the LLM autonomously
+  triggers Excel audit logging and counselor email alerts via
+  tool calls, no hand-coded routing rules.
+- **Production observability** baked in: Prometheus histograms
+  for per-stage latency, Langfuse distributed tracing across
+  every LLM hop.
+- **Six REST + SSE endpoints** (`/v1/chat`, `/v1/intent`,
+  `/v1/emotion/{audio,video,fuse}`, `/v1/rag/consult`) on FastAPI,
+  orchestrated alongside Ollama, Chroma, MCP, and Prometheus via
+  Docker Compose.
+
+---
+
 ## Architecture
 
 ```
-User input (text / audio / video frames)
+                ┌── Lora fine-tune ──────────────────────────────
+                │
+                │   Qwen2.5-7B + open Chinese PSY dataset.
+                │   4 emotion labels (Chinese ↔ English):
+                │
+                │       正常    Normal        焦虑   Anxiety
+                │       低落    Low mood      高风险 High risk
+                │
+                │   The fine-tuned model is reused in the steps below.
+                │
+                └────────────────────────────────────────────────
+
+
+  User input  (text / audio / video frames)
          │
          ▼
-┌──────────────────────────────────────┐
-│ ① Multimodal emotion sensing         │
-│    text  → fine-tuned Qwen2.5-7B     │
-│    audio → faster-whisper → text clf │
-│    vision→ MediaPipe FaceMesh (468)  │
-└──────────────────────────────────────┘
+
+┌── ① Multimodal emotion sensing ────────────────────────────────
+│
+│   text    →  fine-tuned Qwen2.5-7B               →  emotion label
+│   audio   →  faster-whisper → text → Qwen        →  emotion label
+│   vision  →  MediaPipe 468-pt FaceMesh           →  score + label
+│
+└────────────────────────────────────────────────────────────────
          │
          ▼
-┌──────────────────────────────────────┐
-│ ② Multimodal fusion                  │
-│    deterministic Python (+ LLM check)│
-│    final = 0.5·v + 0.4·a + 0.1·t     │
-│    → {label, score, risk}            │
-└──────────────────────────────────────┘
+
+┌── ② Multimodal fusion engine (deterministic Python) ───────────
+│
+│   SCORE_MAP    正常 = 0      焦虑 = 2      低落 = 3      高风险 = 4
+│                Normal = 0    Anxiety = 2   Low = 3       High-risk = 4
+│
+│   fused_score  =  0.5 · vision  +  0.4 · audio  +  0.1 · text
+│
+│   risk_band       <  1.0       →   正常    (Normal)
+│                  1.0 – 2.0     →   需关注  (Needs attention)
+│                   ≥  2.0       →   高风险  (High risk)
+│
+│   Emits (emotion_label, fused_score, risk_band):
+│   the user's OBJECTIVE multimodal state.
+│
+└────────────────────────────────────────────────────────────────
          │
          ▼
-┌──────────────────────────────────────┐
-│ ③ Layer 1: intent classifier         │
-│    regex fast-path + fine-tuned Qwen │
-└──────────────────────────────────────┘
-   │            │              │
- CHAT       CONSULT           RISK
-   │            │              │ fast path
-   │            ▼              ▼
-   │   ┌──────────────────┐    │
-   │   │ ④ Agentic RAG    │    │
-   │   │   LangGraph FSM  │    │
-   │   │   Chroma + ReAct │    │
-   │   └──────────────────┘    │
-   │            │              │
-   ▼            ▼              ▼
-┌──────────────────────────────────────┐
-│ ⑤ Layer 3: risk tier + MCP effects   │
-│    <1.0   normal     —               │
-│    1.0–2.0 watch     Excel           │
-│    ≥2.0   high-risk  Excel + email   │
-└──────────────────────────────────────┘
-         │
-         ▼
-       ⑥ SSE streaming reply
+
+┌── ③ Layer-1 intent classifier ─────────────────────────────────
+│       (regex fast-path + fine-tuned Qwen)
+│
+│   Classifies the user MESSAGE into one of:
+│
+│       CHAT   ·   CONSULT   ·   RISK
+│
+│   ─ what the user MEANT TO DO, not their objective state.
+│
+└────────────────────────────────────────────────────────────────
+
+         │              │                                    │
+         ▼              ▼                                    ▼
+
+        CHAT         CONSULT                              RISK
+      chitchat,    mental-health Q                     explicit extreme:
+      small talk   ("stressed at school")              suicide / self-harm
+
+         │              │                                    │
+         │              ▼                                    │
+         │                                                   │
+         │   ┌── ④ Agentic RAG (LangGraph FSM) ────          │   fast-path:
+         │   │                                               │   bypass RAG,
+         │   │   Fine-tuned Qwen decides:                    │   stream crisis
+         │   │     need KB lookup?                           │   comfort,
+         │   │       no   →  answer directly                 │   fire email
+         │   │       yes  →  Chroma retrieval +              │   alert from a
+         │   │               multi-step ReAct                │   background
+         │   │                                               │   task.
+         │   └──                                             │
+         │              │                                    │
+         │              ▼                                    │
+         │                                                   │
+         │   ┌── ⑤ Side-effect routing (MCP server) ─────────
+         │   │
+         │   │   Dispatch matrix keyed on (intent × risk_band):
+         │   │
+         │   │     CHAT    + 正常 / 需关注          →  no-op
+         │   │              (Normal / Needs attention)
+         │   │     CHAT    + 高风险 (High risk)     →  Excel + email     ← silent crisis
+         │   │     CONSULT + 正常 / 需关注          →  Excel
+         │   │              (Normal / Needs attention)
+         │   │     CONSULT + 高风险 (High risk)     →  Excel + email     ← Consult re-tier
+         │   │     RISK    + (any risk_band)        →  Excel + email     ← intent fast-path
+         │   │
+         │   └──
+         │              │                                    │
+         ▼              ▼                                    ▼
+
+      (no side       MCP writes Excel audit                MCP writes Excel
+       effects)      and / or fires counselor              + fires counselor
+                     email alert.                          email alert.
+
+         │              │                                    │
+         └──────────────┴───────────────┬────────────────────┘
+                                        │
+                                        ▼
+
+┌── ⑥ SSE streamed reply ────────────────────────────────────────
+│       (fine-tuned Qwen, low-hallucination)
+│
+│   CHAT:    friendly chitchat
+│   CONSULT: supportive + KB-grounded answer if retrieval happened
+│   RISK:    crisis comfort + campus hotline reminder
+│
+└────────────────────────────────────────────────────────────────
 ```
 
-Two risk gates instead of one is the central design choice. Layer 1
-catches *explicit* distress in text via a regex fast-path plus the
-intent classifier, short-circuiting to alerts without an LLM
-round-trip. Layer 3 catches *implicit* distress that only shows up
-across modalities — a student typing "I'm fine" while their face and
-voice score high. A single text-only judgement misses silent crises;
-a single multimodal judgement misses explicit ones.
+**Two risk signals fed into one dispatch matrix.** Layer-1's intent
+classifier reads the user's *message* and assigns CHAT / CONSULT /
+RISK. The fusion engine in ② reads the user's *multimodal state* and
+produces a `risk_band` (正常 / 需关注 / 高风险). The two signals
+combine in ⑤ to decide side effects:
+
+- `RISK` intent → always Excel + email, regardless of risk_band. This
+  is the explicit-text fast path for self-harm / suicide language.
+- `CHAT` intent + risk_band `高风险` → also Excel + email. The *silent
+  crisis* case: benign words ("I'm fine") but face/voice score high.
+  Text-only judgement would miss it.
+- `CONSULT` intent → Excel always, email only when risk_band is
+  `高风险`. Audit trail for every consult, escalation only when the
+  underlying signal corroborates.
+
+A natural question: isn't the Consult-branch risk check redundant
+with the RISK intent? They catch different things. RISK intent is
+*what the message literally says*. Consult's risk_band gating is
+*what the accumulated multimodal signal implies*. Combined, neither
+dimension's blind spot is left uncovered.
 
 ---
 
