@@ -266,6 +266,19 @@ MediaPipe, Chroma. Every layer of framework abstraction makes prompt
 debugging and trace reading harder; this is the wrong domain to take
 that hit.
 
+### Vector store is a swappable backend
+
+Retrieval sits behind a small store interface picked by `VECTOR_BACKEND`.
+Chroma is the default — at this corpus size its hnswlib HNSW is plenty,
+and its metadata filtering is what drives the neighbor-chunk splicing.
+`faiss` (`IndexHNSWFlat`, cosine) and `milvus` (standalone, `IVF_FLAT`)
+are wired in behind the same interface: FAISS is a bare index, so chunk
+metadata goes in a JSON sidecar; Milvus filters with a scalar boolean
+expression. Swapping backends is one env var and the RAG code doesn't
+move. Milvus is deliberately not the default — a three-service
+distributed store is over-provisioned for a few thousand vectors, so it
+stays an opt-in migration path, not a demo dependency.
+
 ### Alert recipients are ops config, not source
 
 [`mail_alert`](mcp_server/tools/mail_alert.py) reads `ALERT_TO` from
@@ -279,7 +292,8 @@ authorization decision stays out of source.
 
 FastAPI + Pydantic v2 · Ollama for local GGUF inference ·
 Qwen2.5-7B-Instruct base · QLoRA 4-bit nf4 fine-tuning · LangGraph for
-the Agentic RAG state machine · Chroma + bge-small-zh embeddings ·
+the Agentic RAG state machine · swappable vector store (Chroma /
+FAISS / Milvus) + bge-small-zh embeddings ·
 faster-whisper · MediaPipe FaceMesh · MCP via FastMCP · Prometheus +
 Langfuse · Docker Compose.
 
@@ -381,7 +395,8 @@ recall** (missed positives are far costlier than false alarms here).
   production without code changes.
 - **Configuration.** See [`.env.example`](.env.example).
   `EMBEDDING_BACKEND` toggles between local bge and OpenAI;
-  `ALERT_TO` decides crisis-email recipients.
+  `VECTOR_BACKEND` switches the vector store across Chroma, FAISS, and
+  Milvus; `ALERT_TO` decides crisis-email recipients.
 
 ---
 
