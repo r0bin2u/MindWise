@@ -1,4 +1,4 @@
-"""Build the Chroma knowledge base from markdown / text docs.
+"""Build the vector knowledge base from markdown / text docs.
 
   - RecursiveCharacterTextSplitter with chunk_size=512 token, chunk_overlap=64
   - Separators prefer paragraph / sentence ends so chunks don't break mid-sentence
@@ -7,8 +7,8 @@
   - Store metadata (source, chunk_idx, total_chunks) so retrieval can splice
     neighboring chunks for extra context — chunk3 hit returns chunk2+3+4
 
-Only LangChain component used here is the splitter; everything else is
-straight chromadb / sentence-transformers.
+Backend (chroma / faiss) comes from --vector-backend or settings; the splitter
+is the only LangChain component, everything else is the store interface.
 """
 
 import argparse
@@ -16,10 +16,9 @@ import hashlib
 import re
 from pathlib import Path
 
-import chromadb
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
-from app.services.embeddings import make_embedding_function
+from app.services.vector_store import get_build_store
 
 
 # noise → embedding drift → recall drops. Minimal cleanup only; anything
@@ -47,10 +46,20 @@ def make_id(source: str, idx: int) -> str:
 def build():
     ap = argparse.ArgumentParser()
     ap.add_argument("--input", default="data/kb_docs")
-    ap.add_argument("--output", default="data/kb")
+    ap.add_argument(
+        "--output",
+        default=None,
+        help="store path; defaults to the backend's configured path (chroma_path / faiss_path)",
+    )
     ap.add_argument("--collection", default="mindwise_psych")
     ap.add_argument("--chunk-size", type=int, default=512)
     ap.add_argument("--chunk-overlap", type=int, default=64)
+    ap.add_argument(
+        "--vector-backend",
+        default=None,
+        choices=["chroma", "faiss", "milvus"],
+        help="override VECTOR_BACKEND for this build",
+    )
     ap.add_argument(
         "--embed-backend",
         default=None,
@@ -60,7 +69,7 @@ def build():
     ap.add_argument(
         "--embed-model", default=None, help="override model name within the chosen backend"
     )
-    ap.add_argument("--rebuild", action="store_true", help="drop and recreate the collection")
+    ap.add_argument("--rebuild", action="store_true", help="drop and recreate the index")
     args = ap.parse_args()
 
     splitter = RecursiveCharacterTextSplitter.from_tiktoken_encoder(
@@ -71,19 +80,17 @@ def build():
         separators=["\n\n", "\n", "。", "！", "？", "；", " ", ""],
     )
 
-    ef = make_embedding_function(backend=args.embed_backend, model=args.embed_model)
-
-    Path(args.output).mkdir(parents=True, exist_ok=True)
-    client = chromadb.PersistentClient(path=args.output)
+    store = get_build_store(
+        backend=args.vector_backend,
+        path=args.output,
+        collection=args.collection,
+        embed_backend=args.embed_backend,
+        embed_model=args.embed_model,
+    )
 
     if args.rebuild:
-        try:
-            client.delete_collection(args.collection)
-            print(f"dropped existing collection {args.collection}")
-        except Exception:
-            pass
-
-    col = client.get_or_create_collection(name=args.collection, embedding_function=ef)
+        store.drop()
+        print("dropped existing index")
 
     input_root = Path(args.input)
     docs_seen = 0
@@ -105,12 +112,13 @@ def build():
             for i in range(len(chunks))
         ]
         # upsert so reruns update in place
-        col.upsert(ids=ids, documents=chunks, metadatas=metadatas)
+        store.upsert(ids=ids, documents=chunks, metadatas=metadatas)
         docs_seen += 1
         chunks_added += len(chunks)
         print(f"  [{source}] {len(chunks)} chunks")
 
-    print(f"\ndone. docs={docs_seen} chunks={chunks_added} -> {args.output}/{args.collection}")
+    store.persist()
+    print(f"\ndone. docs={docs_seen} chunks={chunks_added} -> {args.vector_backend or 'settings'} backend")
 
 
 if __name__ == "__main__":

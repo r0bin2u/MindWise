@@ -1,46 +1,19 @@
-"""Chroma retrieval with neighbor-chunk splicing.
+"""Vector retrieval with neighbor-chunk splicing.
 
 When chunk_i is the top hit, we also pull chunk_{i-n} .. chunk_{i+n} from
 the same source and splice them back in original order. This recovers the
 surrounding context that a 512-token chunk boundary may have broken,
 without having to retrieve at a coarser granularity.
+
+The underlying store (Chroma or FAISS) is chosen by settings.vector_backend;
+this module only talks to the store interface.
 """
 
 from __future__ import annotations
 
-from functools import lru_cache
 from typing import Any
 
-import chromadb
-
-from app.core.config import settings
-from app.services.embeddings import make_embedding_function
-
-
-DEFAULT_COLLECTION = "mindwise_psych"
-
-
-@lru_cache(maxsize=1)
-def _get_collection():
-    client = chromadb.PersistentClient(path=settings.chroma_path)
-    # backend selection comes from env / settings, same factory as build_kb
-    ef = make_embedding_function()
-    return client.get_or_create_collection(name=DEFAULT_COLLECTION, embedding_function=ef)
-
-
-def _fetch_neighbors(col, source: str, lo: int, hi: int) -> list[dict]:
-    """Return all chunks from `source` with chunk_idx in [lo, hi], sorted."""
-    where = {
-        "$and": [
-            {"source": source},
-            {"chunk_idx": {"$gte": lo}},
-            {"chunk_idx": {"$lte": hi}},
-        ]
-    }
-    got = col.get(where=where, include=["documents", "metadatas"])
-    pairs = list(zip(got["documents"], got["metadatas"]))
-    pairs.sort(key=lambda p: p[1]["chunk_idx"])
-    return [{"doc": d, "meta": m} for d, m in pairs]
+from app.services.vector_store import get_vector_store
 
 
 def retrieve(query: str, k: int = 3, neighbors: int = 1) -> list[dict[str, Any]]:
@@ -53,20 +26,15 @@ def retrieve(query: str, k: int = 3, neighbors: int = 1) -> list[dict[str, Any]]
     if not query or not query.strip():
         return []
 
-    col = _get_collection()
+    store = get_vector_store()
     try:
-        res = col.query(
-            query_texts=[query],
-            n_results=k,
-            include=["metadatas", "distances"],
-        )
+        metas = store.query(query, k)
     except Exception:
         return []
 
     passages: list[dict[str, Any]] = []
     seen: set[tuple[str, int, int]] = set()
 
-    metas = res.get("metadatas", [[]])[0]
     for meta in metas:
         source = meta["source"]
         idx = int(meta["chunk_idx"])
@@ -79,7 +47,7 @@ def retrieve(query: str, k: int = 3, neighbors: int = 1) -> list[dict[str, Any]]
             continue
         seen.add(key)
 
-        spliced = _fetch_neighbors(col, source, lo, hi)
+        spliced = store.fetch_range(source, lo, hi)
         if not spliced:
             continue
         text = " ".join(s["doc"] for s in spliced)

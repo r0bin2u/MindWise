@@ -21,6 +21,8 @@ in different spaces — mixing them silently breaks retrieval. If you switch
 backends, drop `data/kb/` and rebuild (`python -m scripts.build_kb --rebuild`).
 """
 
+from functools import lru_cache
+
 from chromadb.utils import embedding_functions
 
 from app.core.config import settings
@@ -74,3 +76,45 @@ def make_embedding_function(
     return embedding_functions.SentenceTransformerEmbeddingFunction(
         model_name=model or settings.embedding_model or DEFAULT_ST_MODEL
     )
+
+
+# ---------------------------------------------------------------------------
+# Raw vectors — the FAISS / Milvus backends need the embeddings in hand rather
+# than delegating to Chroma's internal embedding call. Vectors are always
+# L2-normalised so an inner-product index behaves as cosine similarity.
+# ---------------------------------------------------------------------------
+
+
+@lru_cache(maxsize=2)
+def _st_model(name: str):
+    from sentence_transformers import SentenceTransformer
+
+    return SentenceTransformer(name)
+
+
+def _l2_normalize(vectors) -> list[list[float]]:
+    import numpy as np
+
+    arr = np.asarray(vectors, dtype="float32")
+    norms = np.linalg.norm(arr, axis=1, keepdims=True)
+    norms[norms == 0] = 1.0
+    return (arr / norms).tolist()
+
+
+def embed_texts(texts, backend: str | None = None, model: str | None = None) -> list[list[float]]:
+    """Return L2-normalised embedding vectors for `texts`.
+
+    Uses the same backend resolution as make_embedding_function, so the
+    vectors match whatever the KB was built with.
+    """
+    kind = _resolve_backend(backend)
+    items = list(texts)
+
+    if kind == BACKEND_SENTENCE_TRANSFORMER:
+        m = _st_model(model or settings.embedding_model or DEFAULT_ST_MODEL)
+        return m.encode(items, normalize_embeddings=True).tolist()
+
+    # openai — reuse the Chroma embedding function purely as an embedder,
+    # then normalise ourselves (the API vectors aren't guaranteed unit-norm).
+    ef = make_embedding_function(backend, model)
+    return _l2_normalize(ef(items))
