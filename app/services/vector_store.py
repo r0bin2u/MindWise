@@ -65,9 +65,7 @@ class ChromaStore:
         self._col.upsert(ids=ids, documents=documents, metadatas=metadatas)
 
     def query(self, text: str, k: int) -> list[dict[str, Any]]:
-        res = self._col.query(
-            query_texts=[text], n_results=k, include=["metadatas", "distances"]
-        )
+        res = self._col.query(query_texts=[text], n_results=k, include=["metadatas", "distances"])
         return res.get("metadatas", [[]])[0]
 
     def fetch_range(self, source: str, lo: int, hi: int) -> list[dict[str, Any]]:

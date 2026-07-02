@@ -118,7 +118,9 @@ def build():
         print(f"  [{source}] {len(chunks)} chunks")
 
     store.persist()
-    print(f"\ndone. docs={docs_seen} chunks={chunks_added} -> {args.vector_backend or 'settings'} backend")
+    print(
+        f"\ndone. docs={docs_seen} chunks={chunks_added} -> {args.vector_backend or 'settings'} backend"
+    )
 
 
 if __name__ == "__main__":

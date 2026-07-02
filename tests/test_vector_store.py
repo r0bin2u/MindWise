@@ -22,7 +22,9 @@ def test_faiss_roundtrip(tmp_path, monkeypatch):
     from app.services import embeddings as emb
 
     table = {"a": [1.0, 0.0, 0.0, 0.0], "b": [0.0, 1.0, 0.0, 0.0], "c": [0.0, 0.0, 1.0, 0.0]}
-    monkeypatch.setattr(emb, "embed_texts", lambda texts, backend=None, model=None: [table[t] for t in texts])
+    monkeypatch.setattr(
+        emb, "embed_texts", lambda texts, backend=None, model=None: [table[t] for t in texts]
+    )
 
     store = vs.FaissStore(str(tmp_path))
     store.upsert(["s_0", "s_1", "s_2"], ["a", "b", "c"], [_meta(0), _meta(1), _meta(2)])
@@ -41,7 +43,9 @@ def test_faiss_roundtrip(tmp_path, monkeypatch):
 def test_faiss_fetch_range_clamps_missing(tmp_path, monkeypatch):
     from app.services import embeddings as emb
 
-    monkeypatch.setattr(emb, "embed_texts", lambda texts, backend=None, model=None: [[1.0, 0.0]] * len(texts))
+    monkeypatch.setattr(
+        emb, "embed_texts", lambda texts, backend=None, model=None: [[1.0, 0.0]] * len(texts)
+    )
 
     store = vs.FaissStore(str(tmp_path))
     store.upsert(["s_0"], ["only"], [_meta(0, total=1)])
@@ -61,7 +65,9 @@ def test_milvus_roundtrip(monkeypatch):
     from app.services import embeddings as emb
 
     table = {"a": [1.0, 0.0, 0.0, 0.0], "b": [0.0, 1.0, 0.0, 0.0], "c": [0.0, 0.0, 1.0, 0.0]}
-    monkeypatch.setattr(emb, "embed_texts", lambda texts, backend=None, model=None: [table[t] for t in texts])
+    monkeypatch.setattr(
+        emb, "embed_texts", lambda texts, backend=None, model=None: [table[t] for t in texts]
+    )
 
     store = vs.MilvusStore(uri=settings.milvus_uri, collection="mindwise_test_rt")
     try:
